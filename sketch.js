@@ -2,6 +2,7 @@ let video;
 let handpose;
 let predictions = [];
 
+let modelReady = false;
 let state = "start";
 let index = 0;
 let hold = 0;
@@ -33,14 +34,15 @@ const cards = [
 function setup(){
 createCanvas(windowWidth, windowHeight);
 
-// 📷 攝影機
+// 📷 camera
 video = createCapture(VIDEO);
 video.size(220,165);
 video.hide();
 
-// 🖐️ 手勢模型
+// 🖐️ handpose（重點修復）
 handpose = ml5.handpose(video, () => {
-console.log("手勢模型載入完成");
+modelReady = true;
+console.log("model ready");
 });
 
 handpose.on("predict", results => {
@@ -52,89 +54,85 @@ function draw(){
 
 background(0);
 
-// =====================
-// 📌 右上角攝影機
-// =====================
+// ======================
+// 📷 右上角鏡頭（永遠顯示）
+// ======================
 image(video, width - 230, 10, 220, 165);
 
-// =====================
-// ❗ 沒偵測到手
-// =====================
-if(predictions.length === 0){
-textAlign(CENTER);
+// ======================
+// ❗ model還沒好
+// ======================
+if(!modelReady){
 fill(255);
+textAlign(CENTER);
 textSize(20);
-
-if(state === "start"){
-text("請點擊畫面開始占卜", width/2, height/2);
-} else {
-text("請將手放入鏡頭", width/2, height/2);
+text("模型載入中...", width/2, height/2);
+return;
 }
 
+// ======================
+// 🟣 START畫面（不依賴手勢）
+// ======================
+if(state === "start"){
+fill(255);
+textAlign(CENTER);
+
+textSize(30);
+text("塔羅牌占卜", width/2, height/2 - 40);
+
+textSize(16);
+text("點擊畫面開始", width/2, height/2 + 10);
+
+return;
+}
+
+// ======================
+// ❗ 沒手也能進入（修復卡死問題）
+// ======================
+if(predictions.length === 0){
+fill(255);
+textAlign(CENTER);
+text("請將手放入鏡頭", width/2, height/2);
 return;
 }
 
 let hand = predictions[0];
 let lm = hand.landmarks;
 
-// 👉 食指座標
-let x = lm[8][0];
-
-// =====================
-// 🟣 START 畫面
-// =====================
-if(state === "start"){
-
-fill(255);
-textAlign(CENTER);
-
-textSize(28);
-text("塔羅牌占卜系統", width/2, height/2 - 60);
-
-textSize(16);
-text("請將手放入鏡頭", width/2, height/2 - 20);
-
-textSize(18);
-text("👉 點擊畫面開始", width/2, height/2 + 40);
-
-return;
-}
-
-// =====================
-// ✋ 張手 → 進入選牌
-// =====================
+// ======================
+// ✋ 張手 → select
+// ======================
 if(isOpen(lm)){
 state = "select";
 }
 
-// =====================
+// ======================
 // 🎴 選牌
-// =====================
+// ======================
 if(state === "select"){
 
-textAlign(CENTER);
 fill(255);
+textAlign(CENTER);
 
-textSize(22);
-text("左右移動選擇塔羅牌", width/2, height/2 - 80);
+textSize(20);
+text("左右移動選牌", width/2, height/2 - 80);
+
+let x = lm[8][0];
 
 if(x < 150) index--;
 if(x > 350) index++;
 
-index = constrain(index, 0, cards.length - 1);
+index = constrain(index, 0, cards.length-1);
 
-textSize(30);
+textSize(32);
 text(cards[index].name, width/2, height/2);
 }
 
-// =====================
-// ✊ 握拳 → 計數
-// =====================
+// ======================
+// ✊ 握拳
+// ======================
 if(isFist(lm)){
 hold++;
-
-textSize(16);
-text("確認中 " + hold, width/2, height/2 + 60);
 
 if(hold > 60){
 state = "result";
@@ -143,9 +141,9 @@ state = "result";
 hold = 0;
 }
 
-// =====================
-// 🎴 結果畫面
-// =====================
+// ======================
+// 🎴 結果
+// ======================
 if(state === "result"){
 
 fill(255);
@@ -162,9 +160,9 @@ text("點擊畫面重新開始", width/2, height/2 + 80);
 }
 }
 
-// =====================
-// 🖐️ 手勢判斷
-// =====================
+// ======================
+// 🖐️ 手勢
+// ======================
 function isOpen(lm){
 return lm[8][1] < lm[6][1] &&
 lm[12][1] < lm[10][1] &&
@@ -177,18 +175,15 @@ lm[12][1] > lm[10][1] &&
 lm[16][1] > lm[14][1];
 }
 
-// =====================
-// 🖱️ 滑鼠控制（關鍵修復）
-// =====================
+// ======================
+// 🖱️ 強制進入（關鍵修復）
+// ======================
 function mousePressed(){
-
-// 👉 start → select
 if(state === "start"){
 state = "select";
 }
 
-// 👉 result → restart
-else if(state === "result"){
+if(state === "result"){
 state = "start";
 index = 0;
 hold = 0;
