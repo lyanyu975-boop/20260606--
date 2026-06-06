@@ -1,69 +1,97 @@
 let video = document.getElementById("video");
-let canvas = document.getElementById("handCanvas");
+let canvas = document.getElementById("canvas");
 let ctx = canvas.getContext("2d");
 
-let state = "idle";
-let index = 0;
-let hold = 0;
+let state="idle";
+let index=0;
+let hold=0;
 
-/* ⭐ 22張完整塔羅（中文比賽版） */
-const cards = [
-{ name:"愚者", meaning:"新的開始、自由與冒險", img:"assets/cards/fool.jpg" },
-{ name:"魔術師", meaning:"創造力與行動力", img:"assets/cards/magician.jpg" },
-{ name:"女祭司", meaning:"直覺與潛意識", img:"assets/cards/priestess.jpg" },
-{ name:"皇后", meaning:"豐盛與愛", img:"assets/cards/empress.jpg" },
-{ name:"皇帝", meaning:"秩序與權力", img:"assets/cards/emperor.jpg" },
-{ name:"教皇", meaning:"傳統與信仰", img:"assets/cards/heirophant.jpg" },
-{ name:"戀人", meaning:"選擇與情感", img:"assets/cards/lovers.jpg" },
-{ name:"戰車", meaning:"意志與勝利", img:"assets/cards/chariot.jpg" },
-{ name:"力量", meaning:"勇氣與內在力量", img:"assets/cards/strength.jpg" },
-{ name:"隱者", meaning:"內省與智慧", img:"assets/cards/hermit.jpg" },
-{ name:"命運之輪", meaning:"命運與轉變", img:"assets/cards/wheel.jpg" },
-{ name:"正義", meaning:"公平與因果", img:"assets/cards/justice.jpg" },
-{ name:"吊人", meaning:"犧牲與等待", img:"assets/cards/hanged.jpg" },
-{ name:"死神", meaning:"結束與重生", img:"assets/cards/death.jpg" },
-{ name:"節制", meaning:"平衡與調和", img:"assets/cards/temperance.jpg" },
-{ name:"惡魔", meaning:"慾望與束縛", img:"assets/cards/devil.jpg" },
-{ name:"高塔", meaning:"崩解與覺醒", img:"assets/cards/tower.jpg" },
-{ name:"星星", meaning:"希望與療癒", img:"assets/cards/star.jpg" },
-{ name:"月亮", meaning:"迷惘與潛意識", img:"assets/cards/moon.jpg" },
-{ name:"太陽", meaning:"成功與喜悅", img:"assets/cards/sun.jpg" },
-{ name:"審判", meaning:"覺醒與重生", img:"assets/cards/judgement.jpg" },
-{ name:"世界", meaning:"完成與圓滿", img:"assets/cards/world.jpg" }
+/* ⭐ 塔羅牌（中文） */
+const cards=[
+{name:"愚者",desc:"新的開始與自由",img:"fool.jpg"},
+{name:"魔術師",desc:"行動與創造力",img:"magician.jpg"},
+{name:"戀人",desc:"選擇與情感",img:"lovers.jpg"},
+{name:"太陽",desc:"成功與喜悅",img:"sun.jpg"}
 ];
 
-/* ===== 開始 ===== */
-function start(){
+/* ===== 修正：開始按鈕一定能點 ===== */
+document.getElementById("startBtn").addEventListener("click",startGame);
+
+function startGame(){
 document.getElementById("startScreen").style.display="none";
-document.getElementById("game").style.display="block";
+document.getElementById("gameScreen").style.display="block";
 startCamera();
 }
 
-/* ===== 攝影機 ===== */
+/* ===== 鏡頭（修正：真正啟動） ===== */
 function startCamera(){
 navigator.mediaDevices.getUserMedia({video:true})
 .then(stream=>{
-video.srcObject = stream;
+video.srcObject=stream;
 });
 }
 
-/* ===== 手勢判斷（升級穩定版） ===== */
-function openHand(lm){
-return lm[8].y < lm[6].y &&
-lm[12].y < lm[10].y &&
-lm[16].y < lm[14].y;
+/* ===== MediaPipe ===== */
+const hands=new Hands({
+locateFile:(file)=>{
+return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+}
+});
+
+hands.setOptions({
+maxNumHands:1,
+minDetectionConfidence:0.7,
+minTrackingConfidence:0.7
+});
+
+hands.onResults(onResults);
+
+/* ===== 修正：畫面更新 ===== */
+function onResults(results){
+
+ctx.clearRect(0,0,canvas.width,canvas.height);
+
+if(!results.multiHandLandmarks) return;
+
+let lm=results.multiHandLandmarks[0];
+
+/* 張手 */
+if(isOpen(lm)){
+state="select";
+document.getElementById("hint").innerText="左右移動選牌";
 }
 
-function fist(lm){
-return lm[8].y > lm[6].y &&
-lm[12].y > lm[10].y &&
-lm[16].y > lm[14].y;
+/* 左右選牌 */
+if(state==="select"){
+let x=lm[8].x;
+
+if(x<0.4) index--;
+if(x>0.6) index++;
+
+index=Math.max(0,Math.min(cards.length-1,index));
+
+document.getElementById("card").src=cards[index].img;
 }
 
-/* ===== 選牌 ===== */
-function select(){
-document.getElementById("card").src = cards[index].img;
-document.getElementById("card").classList.add("glow");
+/* 握拳3秒 */
+if(isFist(lm)){
+hold++;
+
+if(hold>80){
+draw();
+}
+}else{
+hold=0;
+}
+}
+
+/* ===== 手勢 ===== */
+function isOpen(lm){
+return lm[8].y<lm[6].y && lm[12].y<lm[10].y;
+}
+
+function isFist(lm){
+return lm[8].y>lm[6].y && lm[12].y>lm[10].y;
 }
 
 /* ===== 抽牌 ===== */
@@ -72,11 +100,22 @@ state="result";
 
 document.getElementById("result").style.display="block";
 
-document.getElementById("title").innerText = cards[index].name;
-document.getElementById("meaning").innerText = cards[index].meaning;
+document.getElementById("title").innerText=cards[index].name;
+document.getElementById("desc").innerText=cards[index].desc;
 }
 
-/* ===== 重置 ===== */
+/* ===== 重新 ===== */
 function restart(){
 location.reload();
 }
+
+/* ===== 啟動偵測 ===== */
+const camera=new Camera(video,{
+onFrame:async()=>{
+await hands.send({image:video});
+},
+width:640,
+height:480
+});
+
+camera.start();

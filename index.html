@@ -2,66 +2,65 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>AI手勢塔羅系統</title>
+<title>塔羅牌占卜</title>
 <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<!-- 🌌 星空背景 -->
-<canvas id="bg"></canvas>
-
-<!-- 🔮 開場 -->
+<!-- 🔮 開始畫面 -->
 <div id="startScreen">
   <div class="panel">
-    <h1>✨ AI 手勢塔羅系統 ✨</h1>
+
+    <h1>塔羅牌占卜</h1>
 
     <p>
-心中想著你的問題，<br>
-抽選一張塔羅牌
+心中想著你的問題，抽選一張塔羅牌
     </p>
 
     <div class="ruleBox">
-✋ 張開五指 → 開啟占卜<br>
-👉 左右移動 → 選擇牌卡<br>
-✊ 握拳 3 秒 → 確認抽牌
+✋ 張開手掌 → 開始占卜<br>
+👈👉 左右移動 → 選擇牌卡<br>
+✊ 握拳3秒 → 確認抽牌
     </div>
 
-    <button onclick="start()">進入系統</button>
+    <button id="startBtn">開始占卜</button>
+
   </div>
 </div>
 
-<!-- 🎮 主畫面 -->
-<div id="game">
+<!-- 🎮 遊戲畫面 -->
+<div id="gameScreen">
 
-<video id="video" autoplay></video>
-<canvas id="handCanvas"></canvas>
+  <!-- 📷 鏡頭（右上） -->
+  <video id="video" autoplay playsinline></video>
+  <canvas id="canvas"></canvas>
 
-<div id="cardBox">
-<img id="card" src="assets/back.png">
-<div id="glow"></div>
+  <!-- 🃏 卡牌 -->
+  <div id="cardBox">
+    <img id="card" src="back.png">
+  </div>
+
+  <!-- 提示 -->
+  <div id="hint">請張開手掌開始選牌</div>
+
+  <!-- 進度 -->
+  <div id="holdUI">
+    <svg width="90" height="90">
+      <circle class="bg" cx="45" cy="45" r="40"></circle>
+      <circle class="progress" cx="45" cy="45" r="40"></circle>
+    </svg>
+  </div>
+
+  <!-- 結果 -->
+  <div id="result">
+    <h2 id="title"></h2>
+    <p id="desc"></p>
+    <button onclick="restart()">重新占卜</button>
+  </div>
+
 </div>
 
-<div id="hint">請張開手掌開始占卜</div>
-
-<!-- 🔵 進度圈 -->
-<div id="holdUI">
-<svg width="90" height="90">
-<circle cx="45" cy="45" r="38" class="track"></circle>
-<circle cx="45" cy="45" r="38" class="progress" id="progress"></circle>
-</svg>
-</div>
-
-<!-- 📖 結果 -->
-<div id="result">
-<h1 id="title"></h1>
-<p id="meaning"></p>
-<button onclick="restart()">重新占卜</button>
-</div>
-
-</div>
-
-<!-- MediaPipe -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
