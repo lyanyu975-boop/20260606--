@@ -2,96 +2,81 @@ let video;
 let handpose;
 let predictions = [];
 
-let modelReady = false;
 let state = "start";
 let index = 0;
 let hold = 0;
+let angle = 0;
+let stars = [];
+let trails = [];
 
+let question = "";
+let resultText = "";
+
+/* 🎴 塔羅牌 */
 const cards = [
-{name:"愚者",desc:"新的開始與自由"},
-{name:"魔術師",desc:"創造與行動力"},
-{name:"女祭司",desc:"直覺與智慧"},
+{name:"愚者",desc:"新的開始，自由與冒險"},
+{name:"魔術師",desc:"行動與創造力"},
+{name:"女祭司",desc:"直覺與潛意識"},
 {name:"皇后",desc:"愛與豐盛"},
-{name:"皇帝",desc:"秩序與權力"},
+{name:"皇帝",desc:"秩序與掌控"},
 {name:"戀人",desc:"選擇與關係"},
 {name:"戰車",desc:"意志與勝利"},
 {name:"力量",desc:"勇氣與內在力量"},
-{name:"隱者",desc:"內省與思考"},
-{name:"命運之輪",desc:"轉變與機會"},
-{name:"正義",desc:"公平與平衡"},
-{name:"吊人",desc:"等待與犧牲"},
-{name:"死神",desc:"結束與重生"},
-{name:"節制",desc:"平衡與調和"},
-{name:"惡魔",desc:"慾望與束縛"},
-{name:"高塔",desc:"崩壞與覺醒"},
-{name:"星星",desc:"希望與療癒"},
-{name:"月亮",desc:"迷惘與潛意識"},
-{name:"太陽",desc:"成功與喜悅"},
-{name:"審判",desc:"覺醒與重生"},
-{name:"世界",desc:"完成與圓滿"}
+{name:"隱者",desc:"內省與智慧"},
+{name:"命運之輪",desc:"轉變與命運"}
 ];
+
+/* 🌟 星空粒子 */
+function initStars(){
+for(let i=0;i<200;i++){
+stars.push({
+x:random(width),
+y:random(height),
+r:random(1,3)
+});
+}
+}
 
 function setup(){
 createCanvas(windowWidth, windowHeight);
 
-// 📷 camera
 video = createCapture(VIDEO);
 video.size(220,165);
 video.hide();
 
-// 🖐️ handpose（重點修復）
 handpose = ml5.handpose(video, () => {
-modelReady = true;
 console.log("model ready");
 });
 
-handpose.on("predict", results => {
-predictions = results;
-});
+handpose.on("predict", r => predictions = r);
+
+initStars();
 }
 
+/* ===================== */
 function draw(){
 
-background(0);
+background(0,20);
 
-// ======================
-// 📷 右上角鏡頭（永遠顯示）
-// ======================
-image(video, width - 230, 10, 220, 165);
+/* 🌌 星空背景 */
+drawStars();
 
-// ======================
-// ❗ model還沒好
-// ======================
-if(!modelReady){
-fill(255);
-textAlign(CENTER);
-textSize(20);
-text("模型載入中...", width/2, height/2);
-return;
-}
+/* 🪄 魔法陣 */
+drawMagicCircle();
 
-// ======================
-// 🟣 START畫面（不依賴手勢）
-// ======================
+/* 📷 鏡頭 */
+image(video, width-240, 20, 220, 165);
+
+/* ❗ start */
 if(state === "start"){
-fill(255);
-textAlign(CENTER);
-
-textSize(30);
-text("塔羅牌占卜", width/2, height/2 - 40);
-
-textSize(16);
-text("點擊畫面開始", width/2, height/2 + 10);
-
+drawStart();
 return;
 }
 
-// ======================
-// ❗ 沒手也能進入（修復卡死問題）
-// ======================
+/* ❗ 無手 */
 if(predictions.length === 0){
-fill(255);
 textAlign(CENTER);
+fill(255);
 text("請將手放入鏡頭", width/2, height/2);
 return;
 }
@@ -99,93 +84,176 @@ return;
 let hand = predictions[0];
 let lm = hand.landmarks;
 
-// ======================
-// ✋ 張手 → select
-// ======================
+/* ✋ 光軌 */
+drawTrail(lm);
+
+/* ===================== */
+/* ✋ 張手 */
+/* ===================== */
 if(isOpen(lm)){
 state = "select";
 }
 
-// ======================
-// 🎴 選牌
-// ======================
+/* ===================== */
+/* 🎴 選牌 */
+/* ===================== */
 if(state === "select"){
-
-fill(255);
-textAlign(CENTER);
-
-textSize(20);
-text("左右移動選牌", width/2, height/2 - 80);
 
 let x = lm[8][0];
 
 if(x < 150) index--;
 if(x > 350) index++;
 
-index = constrain(index, 0, cards.length-1);
+index = constrain(index,0,cards.length-1);
 
-textSize(32);
-text(cards[index].name, width/2, height/2);
+/* 🃏 卡牌（3D翻牌） */
+push();
+translate(width/2, height/2);
+rotateY(sin(frameCount*0.02)*0.2);
+fill(255);
+textAlign(CENTER);
+textSize(30);
+text(cards[index].name, 0, 0);
+pop();
 }
 
-// ======================
-// ✊ 握拳
-// ======================
+/* ===================== */
+/* ✊ 握拳 */
+/* ===================== */
 if(isFist(lm)){
 hold++;
+drawProgress(hold);
 
 if(hold > 60){
 state = "result";
+generateAI(cards[index]);
 }
 }else{
 hold = 0;
 }
 
-// ======================
-// 🎴 結果
-// ======================
+/* ===================== */
+/* 🎴 結果 */
+/* ===================== */
 if(state === "result"){
+drawResult();
+}
+}
 
+/* ===================== */
+/* 🌌 星空 */
+/* ===================== */
+function drawStars(){
+fill(255);
+noStroke();
+
+for(let s of stars){
+circle(s.x,s.y,s.r);
+
+s.y += 0.3;
+if(s.y > height){
+s.y = 0;
+s.x = random(width);
+}
+}
+}
+
+/* ===================== */
+/* 🪄 魔法陣 */
+/* ===================== */
+function drawMagicCircle(){
+push();
+translate(width/2,height/2);
+
+rotate(angle);
+angle += 0.01;
+
+noFill();
+stroke(0,150,255,100);
+circle(0,0,200);
+circle(0,0,300);
+circle(0,0,400);
+
+pop();
+}
+
+/* ===================== */
+/* ✨ start畫面 */
+/* ===================== */
+function drawStart(){
 fill(255);
 textAlign(CENTER);
 
 textSize(32);
-text(cards[index].name, width/2, height/2 - 20);
+text("塔羅牌占卜系統", width/2, height/2 - 40);
 
-textSize(18);
-text(cards[index].desc, width/2, height/2 + 20);
-
-textSize(14);
-text("點擊畫面重新開始", width/2, height/2 + 80);
-}
+textSize(16);
+text("點擊開始進入命運空間", width/2, height/2 + 20);
 }
 
-// ======================
-// 🖐️ 手勢
-// ======================
+/* ===================== */
+/* ✨ 光軌 */
+/* ===================== */
+function drawTrail(lm){
+let x = lm[8][0];
+let y = lm[8][1];
+
+trails.push({x,y});
+
+if(trails.length > 30){
+trails.shift();
+}
+
+noFill();
+stroke(0,200,255);
+
+beginShape();
+for(let t of trails){
+vertex(t.x,t.y);
+}
+endShape();
+}
+
+/* ===================== */
+/* ✊ 判斷 */
+/* ===================== */
 function isOpen(lm){
-return lm[8][1] < lm[6][1] &&
-lm[12][1] < lm[10][1] &&
-lm[16][1] < lm[14][1];
+return lm[8][1] < lm[6][1];
 }
 
 function isFist(lm){
-return lm[8][1] > lm[6][1] &&
-lm[12][1] > lm[10][1] &&
-lm[16][1] > lm[14][1];
+return lm[8][1] > lm[6][1];
 }
 
-// ======================
-// 🖱️ 強制進入（關鍵修復）
-// ======================
-function mousePressed(){
-if(state === "start"){
-state = "select";
+/* ===================== */
+/* 🔵 進度條 */
+/* ===================== */
+function drawProgress(v){
+stroke(0,200,255);
+noFill();
+circle(width/2,height/2,100 + v);
 }
 
-if(state === "result"){
-state = "start";
-index = 0;
-hold = 0;
+/* ===================== */
+/* 🎴 AI解牌（內建版） */
+/* ===================== */
+function generateAI(card){
+resultText =
+"你的能量正在與「" + card.name + "」共振。\n\n" +
+card.desc + "\n\n" +
+"這代表你目前正處於轉變階段，請相信直覺。";
 }
+
+/* ===================== */
+/* 🎴 結果畫面 */
+/* ===================== */
+function drawResult(){
+fill(255);
+textAlign(CENTER);
+
+textSize(30);
+text(cards[index].name, width/2, height/2 - 40);
+
+textSize(16);
+text(resultText, width/2, height/2);
 }
