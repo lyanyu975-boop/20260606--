@@ -150,7 +150,7 @@ function handleHandGesture() {
   if (state === "spinWait") {
     // ✊ 偵測到手先握拳，再「張開」時觸發轉盤
     if (!fist) {
-      playT tarotSound(440, 0.1); // 觸發音效
+      playTarotSound(440, 0.1); // 觸發音效
       state = "play";
       isAutoSpin = true; 
     }
