@@ -1,18 +1,71 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>Tarot Vision AI</title>
+<link rel="stylesheet" href="style.css">
+</head>
 
-    <title>Sketch</title>
+<body>
 
-    <link rel="stylesheet" type="text/css" href="style.css">
+<canvas id="bg"></canvas>
+<canvas id="fx"></canvas>
 
-    <script src="libraries/p5.min.js"></script>
-    <script src="libraries/p5.sound.min.js"></script>
-  </head>
+<!-- 🎬 開場 -->
+<div id="start">
+  <div class="glass">
+    <h1>Tarot Vision AI</h1>
 
-  <body>
-    <script src="sketch.js"></script>
-  </body>
+    <p>
+心中想著你的問題，<br>
+系統將透過手勢解析你的選擇
+    </p>
+
+    <div class="rule">
+✋ 張開手 → 啟動能量場<br>
+🫳 左右移動 → 選擇命運<br>
+✊ 握拳三秒 → 鎖定結果
+    </div>
+
+    <button onclick="start()">進入儀式</button>
+  </div>
+</div>
+
+<!-- 🎮 主畫面 -->
+<div id="app">
+
+<video id="cam" autoplay></video>
+
+<canvas id="hand"></canvas>
+
+<div id="tarotWrap">
+  <img id="card" src="assets/back.png">
+  <div id="aura"></div>
+</div>
+
+<div id="hint">請啟動手勢</div>
+
+<!-- 🔵 能量圈 -->
+<div id="circle">
+<svg>
+<circle class="bg" cx="50" cy="50" r="45"></circle>
+<circle class="prog" cx="50" cy="50" r="45"></circle>
+</svg>
+</div>
+
+<!-- 📖 結果 -->
+<div id="result">
+<h1 id="title"></h1>
+<p id="desc"></p>
+<button onclick="reset()">重新連結命運</button>
+</div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+<script src="app.js"></script>
+
+</body>
 </html>

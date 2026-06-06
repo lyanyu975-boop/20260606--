@@ -1,8 +1,103 @@
-html, body {
-  margin: 0;
-  padding: 0;
+body{
+margin:0;
+overflow:hidden;
+background:black;
+font-family:sans-serif;
+color:white;
 }
 
-canvas {
-  display: block;
+/* 🌌 星空層 */
+#bg, #fx{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+}
+
+/* ===== 開場玻璃 ===== */
+.glass{
+background:rgba(255,255,255,0.06);
+backdrop-filter:blur(20px);
+padding:40px;
+border-radius:20px;
+border:1px solid rgba(255,255,255,0.2);
+text-align:center;
+box-shadow:0 0 60px rgba(255,215,0,0.2);
+}
+
+button{
+margin-top:20px;
+padding:10px 20px;
+border:none;
+background:gold;
+cursor:pointer;
+}
+
+/* ===== 手機視訊 ===== */
+#cam{
+position:absolute;
+top:10px;
+right:10px;
+width:220px;
+border-radius:10px;
+opacity:0.8;
+}
+
+/* ===== 卡牌 ===== */
+#tarotWrap{
+position:absolute;
+top:50%;
+left:50%;
+transform:translate(-50%,-50%);
+}
+
+#card{
+width:240px;
+filter:drop-shadow(0 0 25px gold);
+transition:0.4s;
+}
+
+#aura{
+position:absolute;
+top:50%;
+left:50%;
+transform:translate(-50%,-50%);
+width:300px;
+height:300px;
+border-radius:50%;
+background:radial-gradient(circle, rgba(255,215,0,0.3), transparent);
+animation:pulse 2s infinite;
+}
+
+@keyframes pulse{
+0%{transform:translate(-50%,-50%) scale(1);}
+50%{transform:translate(-50%,-50%) scale(1.2);}
+}
+
+/* ===== 提示 ===== */
+#hint{
+position:absolute;
+bottom:20px;
+width:100%;
+text-align:center;
+opacity:0.7;
+}
+
+/* ===== 能量圈 ===== */
+#circle{
+position:absolute;
+bottom:60px;
+left:50%;
+transform:translateX(-50%);
+display:none;
+}
+
+circle{
+fill:none;
+stroke:gold;
+stroke-width:6;
+stroke-dasharray:280;
+stroke-dashoffset:280;
+transition:0.1s;
 }
