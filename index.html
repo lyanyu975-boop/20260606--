@@ -2,66 +2,66 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>Tarot Vision AI</title>
+<title>AI手勢塔羅系統</title>
 <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
+<!-- 🌌 星空背景 -->
 <canvas id="bg"></canvas>
-<canvas id="fx"></canvas>
 
-<!-- 🎬 開場 -->
-<div id="start">
-  <div class="glass">
-    <h1>Tarot Vision AI</h1>
+<!-- 🔮 開場 -->
+<div id="startScreen">
+  <div class="panel">
+    <h1>✨ AI 手勢塔羅系統 ✨</h1>
 
     <p>
 心中想著你的問題，<br>
-系統將透過手勢解析你的選擇
+抽選一張塔羅牌
     </p>
 
-    <div class="rule">
-✋ 張開手 → 啟動能量場<br>
-🫳 左右移動 → 選擇命運<br>
-✊ 握拳三秒 → 鎖定結果
+    <div class="ruleBox">
+✋ 張開五指 → 開啟占卜<br>
+👉 左右移動 → 選擇牌卡<br>
+✊ 握拳 3 秒 → 確認抽牌
     </div>
 
-    <button onclick="start()">進入儀式</button>
+    <button onclick="start()">進入系統</button>
   </div>
 </div>
 
 <!-- 🎮 主畫面 -->
-<div id="app">
+<div id="game">
 
-<video id="cam" autoplay></video>
+<video id="video" autoplay></video>
+<canvas id="handCanvas"></canvas>
 
-<canvas id="hand"></canvas>
-
-<div id="tarotWrap">
-  <img id="card" src="assets/back.png">
-  <div id="aura"></div>
+<div id="cardBox">
+<img id="card" src="assets/back.png">
+<div id="glow"></div>
 </div>
 
-<div id="hint">請啟動手勢</div>
+<div id="hint">請張開手掌開始占卜</div>
 
-<!-- 🔵 能量圈 -->
-<div id="circle">
-<svg>
-<circle class="bg" cx="50" cy="50" r="45"></circle>
-<circle class="prog" cx="50" cy="50" r="45"></circle>
+<!-- 🔵 進度圈 -->
+<div id="holdUI">
+<svg width="90" height="90">
+<circle cx="45" cy="45" r="38" class="track"></circle>
+<circle cx="45" cy="45" r="38" class="progress" id="progress"></circle>
 </svg>
 </div>
 
 <!-- 📖 結果 -->
 <div id="result">
 <h1 id="title"></h1>
-<p id="desc"></p>
-<button onclick="reset()">重新連結命運</button>
+<p id="meaning"></p>
+<button onclick="restart()">重新占卜</button>
 </div>
 
 </div>
 
+<!-- MediaPipe -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
