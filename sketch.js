@@ -4,15 +4,16 @@ let predictions = [];
 
 let index = 0;
 let hold = 0;
-let state = "start"; // 狀態：start(開場), spinWait(等張開), play(左右選/自動), select(選中)
-let isAutoSpin = true; // 是否處於自動轉牌狀態
+let state = "start"; // start, spinWait, play, select
+let isAutoSpin = true; 
 
 // 粒子與魔法陣角度
 let stars = [];
 let magicAngle = 0;
 
-// 音效振盪器 (免外部音效檔)
+// 音效振盪器
 let synth;
+let soundEnabled = false; // 音效安全鎖
 
 // 22張大阿爾克那完整牌組
 const cards = [
@@ -62,13 +63,19 @@ function setup(){
     stars.push({
       x: random(width),
       y: random(height),
-      size: random(1, 3),
-      speed: random(0.2, 1)
+      size: random(1, 4),
+      speed: random(0.5, 2)
     });
   }
 
-  // 🎵 初始化合成器音效
-  synth = new p5.Oscillator('sine');
+  // 🎵 安全初始化合成器音效（防止因缺少庫而崩潰）
+  if (typeof p5.Oscillator !== 'undefined') {
+    synth = new p5.Oscillator('sine');
+    soundEnabled = true;
+    console.log("音效系統載入成功！");
+  } else {
+    console.warn("未偵測到 p5.sound 庫，將以無聲模式執行，不影響畫面。");
+  }
 }
 
 function draw(){
@@ -85,7 +92,6 @@ function draw(){
   if (state === "start") {
     drawStartScreen();
   } else {
-    // 進入占卜流程後，處理手勢核心邏輯
     handleHandGesture();
 
     if (state === "spinWait") {
@@ -103,10 +109,10 @@ function draw(){
 // ==========================================
 function drawStarfield() {
   noStroke();
-  fill(255, 255, 255, 150);
+  fill(255, 255, 255, 180);
   for(let star of stars) {
     ellipse(star.x, star.y, star.size);
-    star.y += star.speed;
+    star.y += star.speed; // 特效：向下流動的星空
     if(star.y > height) star.y = 0;
   }
 }
@@ -114,22 +120,24 @@ function drawStarfield() {
 function drawMagicCircle() {
   push();
   translate(width / 2, height / 2);
-  magicAngle += 0.3; // 緩慢旋轉
+  magicAngle += 0.4; // 魔法陣自動旋轉
   rotate(magicAngle);
   
   noFill();
-  stroke(100, 150, 255, 40); // 淡藍色線條
+  stroke(100, 150, 255, 50); 
   strokeWeight(2);
   
-  ellipse(0, 0, 450);
-  ellipse(0, 0, 400);
+  ellipse(0, 0, 500);
+  ellipse(0, 0, 460);
+  ellipse(0, 0, 200);
   
-  // 繪製十二角星幾何形狀
+  // 繪製多角神祕學幾何線條
   for(let i = 0; i < 12; i++) {
     rotate(30);
-    line(0, -225, 0, 225);
+    line(0, -250, 0, 250);
+    rect(-20, -20, 40, 40);
   }
-  pop()
+  pop();
 }
 
 // ==========================================
@@ -137,7 +145,6 @@ function drawMagicCircle() {
 // ==========================================
 function handleHandGesture() {
   if (predictions.length === 0) {
-    // 沒偵測到手時，如果在 play 狀態就自動輪播
     if (state === "play" && isAutoSpin) {
       autoMode();
     }
@@ -148,17 +155,16 @@ function handleHandGesture() {
   let fist = isFist(lm);
 
   if (state === "spinWait") {
-    // ✊ 偵測到手先握拳，再「張開」時觸發轉盤
+    // ✊ 先握拳再張開 (非 fist) 觸發
     if (!fist) {
-      playTarotSound(440, 0.1); // 觸發音效
+      playTarotSound(440, 0.1); 
       state = "play";
       isAutoSpin = true; 
     }
   } 
   else if (state === "play") {
-    let x = lm[8][0]; // 食指 X 座標
+    let x = lm[8][0]; 
 
-    // 手掌左右移動切換卡牌（關閉自動輪播）
     if (frameCount % 8 === 0) {
       if (x < 70) {
         index = (index - 1 + cards.length) % cards.length;
@@ -171,15 +177,15 @@ function handleHandGesture() {
       }
     }
 
-    // ✊ 握拳 3 秒確認 (約 180 幀，每秒 60 幀)
+    // ✊ 握拳 3 秒確認 (180 幀)
     if (fist) {
       hold++;
       if (hold > 180) { 
         state = "select";
-        playTarotSound(600, 0.5); // 成功音效
+        playTarotSound(600, 0.5); 
       }
     } else {
-      hold = max(0, hold - 2); // 沒握拳時慢慢消退
+      hold = max(0, hold - 2); 
     }
   }
 }
@@ -188,67 +194,60 @@ function handleHandGesture() {
 // 🖥️ 各畫面繪製
 // ==========================================
 
-// 1. 開場畫面
 function drawStartScreen() {
-  // 說明書外框
   rectMode(CENTER);
-  fill(15, 15, 35, 220);
-  stroke(138, 43, 226); // 神秘紫邊框
+  fill(15, 15, 35, 230);
+  stroke(138, 43, 226); 
   strokeWeight(3);
-  rect(width / 2, height / 2, 500, 450, 20);
+  rect(width / 2, height / 2, 520, 460, 20);
 
-  // 文字內容
   noStroke();
   fill(255);
   textAlign(CENTER, CENTER);
   
   textSize(28);
-  fill(255, 215, 0); // 金色
-  text("✨ 核心神祕學塔羅占卜 ✨", width / 2, height / 2 - 160);
+  fill(255, 215, 0); 
+  text("✨ 核心神秘學塔羅占卜 ✨", width / 2, height / 2 - 160);
   
   textSize(18);
   fill(200, 220, 255);
   text("「心中想著你的問題 抽選一張塔羅牌」", width / 2, height / 2 - 100);
   
-  // 說明書應用細則
-  stroke(100, 150, 255, 50);
-  line(width/2 - 200, height/2 - 60, width/2 + 200, height/2 - 60);
+  stroke(100, 150, 255, 60);
+  line(width/2 - 220, height/2 - 60, width/2 + 220, height/2 - 60);
   noStroke();
   
   fill(255);
   textSize(16);
   textAlign(LEFT, CENTER);
-  let startX = width / 2 - 160;
+  let startX = width / 2 - 190;
   text("【手勢說明書】", startX, height / 2 - 30);
   textSize(14);
-  fill(180);
+  fill(190);
   text("1. 進入後請伸出手掌，先「握拳再張開」來觸發轉盤。", startX, height / 2 + 5);
   text("2. 手掌「左右移動」可以手動自由切換牌卡。", startX, height / 2 + 35);
   text("3. 無手勢操作時，系統將會啟動「自動翻牌」。", startX, height / 2 + 65);
   text("4. 面對鏡頭「維持握拳 3 秒鐘」即可確認抽牌。", startX, height / 2 + 95);
 
-  // 點擊提示按鈕
   rectMode(CENTER);
-  fill(138, 43, 226, 150);
-  rect(width / 2, height / 2 + 160, 250, 45, 10);
+  fill(138, 43, 226, 180);
+  rect(width / 2, height / 2 + 170, 260, 45, 10);
   
   fill(255);
   textAlign(CENTER, CENTER);
   textSize(16);
-  text("滑鼠點擊畫面進入占卜", width / 2, height / 2 + 160);
+  text("滑鼠點擊畫面進入占卜", width / 2, height / 2 + 170);
 }
 
-// 2. 等待張開手掌觸發畫面
 function drawSpinWaitScreen() {
   fill(255);
   textAlign(CENTER, CENTER);
   textSize(22);
+  fill(0, 255, 255);
   text("🔮 請面向鏡頭「先握拳再張開」以啟動命運轉盤", width / 2, height / 2);
 }
 
-// 3. 抽牌/選牌中畫面
 function drawPlayScreen() {
-  // 繪製當前卡牌
   push();
   rectMode(CENTER);
   fill(25, 25, 50);
@@ -256,64 +255,62 @@ function drawPlayScreen() {
   strokeWeight(2);
   rect(width / 2, height / 2, 200, 300, 15);
   
-  // 卡背裝飾
   stroke(255, 215, 0, 80);
   rect(width / 2, height / 2, 180, 280, 10);
 
   noStroke();
   fill(255, 215, 0);
   textAlign(CENTER, CENTER);
-  textSize(36);
+  textSize(48);
   text("？", width / 2, height / 2);
   pop();
 
-  // ⭕ 圓形進度條 (握拳 3 秒確認)
+  // ⭕ 精緻圓形進度條 (利用 arc 函數製作)
   if (hold > 0) {
     push();
     translate(width / 2, height / 2 + 200);
     noFill();
-    stroke(255, 255, 255, 50);
-    strokeWeight(6);
-    ellipse(0, 0, 60); // 底圈
+    stroke(255, 255, 255, 40);
+    strokeWeight(8);
+    ellipse(0, 0, 70); // 底圈
     
-    stroke(0, 255, 255); // 青色進度
+    stroke(0, 191, 255); // 圓形深藍/天藍色蓄力條
     let endAngle = map(hold, 0, 180, 0, 360);
-    arc(0, 0, 60, 60, -90, endAngle - 90);
+    arc(0, 0, 70, 70, -90, endAngle - 90);
     
     noStroke();
     fill(255);
-    textSize(12);
+    textSize(13);
     textAlign(CENTER, CENTER);
-    text("蓄力中", 0, 0);
+    text(floor(hold/60) + "s", 0, 0);
     pop();
   } else {
     fill(200, 220, 255);
     textAlign(CENTER, CENTER);
     textSize(16);
     if(isAutoSpin) {
-      text("［自動翻牌中］ 握拳3秒即可鎖定此牌", width / 2, height / 2 + 180);
+      text("［自動翻牌中］ 握拳 3 秒以鎖定此牌", width / 2, height / 2 + 180);
     } else {
-      text("［手動選牌中］ 左右移動切換 / 握拳3秒確認", width / 2, height / 2 + 180);
+      text("［手動選牌中］ 左右移動切換 / 握拳 3 秒確認", width / 2, height / 2 + 180);
     }
   }
 }
 
-// 4. 選中牌發光結果畫面
 function drawSelectScreen() {
   push();
   rectMode(CENTER);
   
-  // ✨ 牌身發光特效 (多層陰影外框)
-  let glow = sin(frameCount * 5) * 15 + 15;
-  for(let i = 5; i > 0; i--) {
-    fill(255, 215, 0, 10);
-    stroke(255, 215, 0, 50 / i);
-    strokeWeight(i * 4 + glow);
+  // ✨ 牌身發光特效
+  let glow = sin(frameCount * 6) * 20 + 20;
+  for(let i = 4; i > 0; i--) {
+    fill(255, 215, 0, 12);
+    stroke(255, 215, 0, 60 / i);
+    strokeWeight(i * 5 + glow);
     rect(width / 2, height / 2 - 30, 220, 320, 15);
   }
 
   // 正式卡牌本體
-  fill(20, 20, 40);
+  fill(15, 15, 30);
   stroke(255, 215, 0);
   strokeWeight(3);
   rect(width / 2, height / 2 - 30, 220, 320, 15);
@@ -323,26 +320,22 @@ function drawSelectScreen() {
   fill(255, 215, 0);
   textAlign(CENTER, CENTER);
   textSize(28);
-  text(cards[index].name, width / 2, height / 2 - 120);
+  text(cards[index].name, width / 2, height / 2 - 110);
 
-  // 牌義文字自動換行排版
   fill(240);
   textSize(16);
   textWrap(WORD);
-  text(cards[index].desc, width / 2 - 90, height / 2 - 60, 180);
+  text(cards[index].desc, width / 2 - 90, height / 2 - 50, 180);
   pop();
 
-  // 重新占卜按鈕
   drawResetButton();
 }
 
-// 🔄 重新占卜按鈕
 function drawResetButton() {
   push();
   rectMode(CENTER);
   let btnY = height - 80;
   
-  // 檢查滑鼠是否懸停在按鈕上
   if (mouseX > width/2 - 100 && mouseX < width/2 + 100 && mouseY > btnY - 22 && mouseY < btnY + 22) {
     fill(138, 43, 226);
     cursor(HAND);
@@ -364,23 +357,21 @@ function drawResetButton() {
 }
 
 // ==========================================
-// ⚙️ 工具函式 (自動模式、手勢判斷、音效)
+// ⚙️ 工具功能
 // ==========================================
-
 function autoMode(){
-  if (frameCount % 45 === 0){ // 每 0.75 秒自動切換下一張
+  if (frameCount % 45 === 0){ 
     index = (index + 1) % cards.length;
     playTarotSound(200, 0.02);
   }
 }
 
 function isFist(lm){
-  // 判斷食指與中指指尖是否低於指節
   return lm[8][1] > lm[6][1] && lm[12][1] > lm[10][1];
 }
 
-// 🎵 網頁音效產生器
 function playTarotSound(freq, duration) {
+  if (!soundEnabled) return; // 如果沒引入庫，直接跳出不報錯
   try {
     synth.start();
     synth.freq(freq);
@@ -390,27 +381,22 @@ function playTarotSound(freq, duration) {
       setTimeout(() => synth.stop(), 100);
     }, duration * 1000);
   } catch(e) {
-    console.log("Audio contextual alert");
+    console.log("Audio Context Alert");
   }
 }
 
-// ==========================================
-// 🖱️ 點擊事件監聽
-// ==========================================
 function mousePressed() {
-  // 開場點擊進入
   if (state === "start") {
-    playTarotSound(523.25, 0.15); // 播放一個中央 C 魔法音
+    playTarotSound(523.25, 0.15); 
     state = "spinWait";
   } 
-  // 結束畫面點擊重新占卜
   else if (state === "select") {
     let btnY = height - 80;
     if (mouseX > width/2 - 100 && mouseX < width/2 + 100 && mouseY > btnY - 22 && mouseY < btnY + 22) {
       playTarotSound(440, 0.1);
       hold = 0;
       index = 0;
-      state = "spinWait"; // 返回等待手勢啟動狀態
+      state = "spinWait"; 
     }
   }
 }
