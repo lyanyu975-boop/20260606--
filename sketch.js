@@ -1,121 +1,107 @@
-let video = document.getElementById("video");
-let canvas = document.getElementById("canvas");
-let ctx = canvas.getContext("2d");
+let video;
+let handpose;
+let predictions = [];
 
-let state="idle";
-let index=0;
-let hold=0;
+let state = "start";
+let index = 0;
+let hold = 0;
 
-/* ⭐ 塔羅牌（中文） */
-const cards=[
-{name:"愚者",desc:"新的開始與自由",img:"fool.jpg"},
-{name:"魔術師",desc:"行動與創造力",img:"magician.jpg"},
-{name:"戀人",desc:"選擇與情感",img:"lovers.jpg"},
-{name:"太陽",desc:"成功與喜悅",img:"sun.jpg"}
+const cards = [
+{name:"愚者",desc:"新的開始"},
+{name:"魔術師",desc:"創造力"},
+{name:"戀人",desc:"選擇"},
+{name:"太陽",desc:"成功"}
 ];
 
-/* ===== 修正：開始按鈕一定能點 ===== */
-document.getElementById("startBtn").addEventListener("click",startGame);
+function setup(){
+createCanvas(windowWidth, windowHeight);
 
-function startGame(){
-document.getElementById("startScreen").style.display="none";
-document.getElementById("gameScreen").style.display="block";
-startCamera();
-}
+video = createCapture(VIDEO);
+video.size(220,165);
+video.hide();
 
-/* ===== 鏡頭（修正：真正啟動） ===== */
-function startCamera(){
-navigator.mediaDevices.getUserMedia({video:true})
-.then(stream=>{
-video.srcObject=stream;
+handpose = ml5.handpose(video, modelReady);
+handpose.on("predict", results => {
+predictions = results;
 });
 }
 
-/* ===== MediaPipe ===== */
-const hands=new Hands({
-locateFile:(file)=>{
-return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+function modelReady(){
+console.log("handpose ready");
 }
-});
 
-hands.setOptions({
-maxNumHands:1,
-minDetectionConfidence:0.7,
-minTrackingConfidence:0.7
-});
+function draw(){
 
-hands.onResults(onResults);
+background(0);
 
-/* ===== 修正：畫面更新 ===== */
-function onResults(results){
+/* 🔴 右上角影像視窗 */
+image(video, width-230, 10);
 
-ctx.clearRect(0,0,canvas.width,canvas.height);
+fill(255);
 
-if(!results.multiHandLandmarks) return;
+/* 沒手 */
+if(predictions.length == 0) return;
 
-let lm=results.multiHandLandmarks[0];
+let hand = predictions[0];
+let lm = hand.landmarks;
 
-/* 張手 */
+/* 👉 食指 */
+let x = lm[8][0];
+let y = lm[8][1];
+
+/* ===== UI ===== */
+textSize(20);
+textAlign(CENTER);
+
+/* ===== 狀態 ===== */
+if(state === "start"){
+text("張開手開始占卜", width/2, height/2);
+}
+
+/* 👉 開始 */
 if(isOpen(lm)){
-state="select";
-document.getElementById("hint").innerText="左右移動選牌";
+state = "select";
+text("左右移動選牌", width/2, height/2-100);
 }
 
-/* 左右選牌 */
-if(state==="select"){
-let x=lm[8].x;
+/* 👉 左右選牌 */
+if(state === "select"){
 
-if(x<0.4) index--;
-if(x>0.6) index++;
+if(x < 150) index--;
+if(x > 350) index++;
 
-index=Math.max(0,Math.min(cards.length-1,index));
+index = constrain(index,0,cards.length-1);
 
-document.getElementById("card").src=cards[index].img;
+text(cards[index].name, width/2, height/2);
+
 }
 
-/* 握拳3秒 */
+/* 👉 握拳確認 */
 if(isFist(lm)){
 hold++;
+text("確認中 " + hold, width/2, height/2+100);
 
-if(hold>80){
-draw();
+if(hold > 60){
+state = "result";
 }
 }else{
-hold=0;
+hold = 0;
+}
+
+/* 👉 結果 */
+if(state === "result"){
+textSize(30);
+text(cards[index].name, width/2, height/2);
+textSize(18);
+text(cards[index].desc, width/2, height/2+40);
 }
 }
 
-/* ===== 手勢 ===== */
+/* ===== 手勢判斷 ===== */
 function isOpen(lm){
-return lm[8].y<lm[6].y && lm[12].y<lm[10].y;
+return lm[8][1] < lm[6][1] && lm[12][1] < lm[10][1];
 }
 
 function isFist(lm){
-return lm[8].y>lm[6].y && lm[12].y>lm[10].y;
+return lm[8][1] > lm[6][1] && lm[12][1] > lm[10][1];
 }
-
-/* ===== 抽牌 ===== */
-function draw(){
-state="result";
-
-document.getElementById("result").style.display="block";
-
-document.getElementById("title").innerText=cards[index].name;
-document.getElementById("desc").innerText=cards[index].desc;
-}
-
-/* ===== 重新 ===== */
-function restart(){
-location.reload();
-}
-
-/* ===== 啟動偵測 ===== */
-const camera=new Camera(video,{
-onFrame:async()=>{
-await hands.send({image:video});
-},
-width:640,
-height:480
-});
-
-camera.start();

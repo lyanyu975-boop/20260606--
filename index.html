@@ -3,66 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <title>塔羅牌占卜</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.js"></script>
+<script src="https://unpkg.com/ml5@0.12.2/dist/ml5.min.js"></script>
+
 <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-
-<!-- 🔮 開始畫面 -->
-<div id="startScreen">
-  <div class="panel">
-
-    <h1>塔羅牌占卜</h1>
-
-    <p>
-心中想著你的問題，抽選一張塔羅牌
-    </p>
-
-    <div class="ruleBox">
-✋ 張開手掌 → 開始占卜<br>
-👈👉 左右移動 → 選擇牌卡<br>
-✊ 握拳3秒 → 確認抽牌
-    </div>
-
-    <button id="startBtn">開始占卜</button>
-
-  </div>
-</div>
-
-<!-- 🎮 遊戲畫面 -->
-<div id="gameScreen">
-
-  <!-- 📷 鏡頭（右上） -->
-  <video id="video" autoplay playsinline></video>
-  <canvas id="canvas"></canvas>
-
-  <!-- 🃏 卡牌 -->
-  <div id="cardBox">
-    <img id="card" src="back.png">
-  </div>
-
-  <!-- 提示 -->
-  <div id="hint">請張開手掌開始選牌</div>
-
-  <!-- 進度 -->
-  <div id="holdUI">
-    <svg width="90" height="90">
-      <circle class="bg" cx="45" cy="45" r="40"></circle>
-      <circle class="progress" cx="45" cy="45" r="40"></circle>
-    </svg>
-  </div>
-
-  <!-- 結果 -->
-  <div id="result">
-    <h2 id="title"></h2>
-    <p id="desc"></p>
-    <button onclick="restart()">重新占卜</button>
-  </div>
-
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
 <script src="app.js"></script>
 
