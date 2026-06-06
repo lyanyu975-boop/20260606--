@@ -8,40 +8,41 @@ let state = "start"; // start, spinWait, play, select
 let isAutoSpin = true; 
 
 // 扇形展開動畫控制
-let spreadProgress = 0; // 0 = 疊成一張, 1 = 完全展開成半圓
+let spreadProgress = 0; 
 
-// 粒子與魔法陣角度
+// 精美特效變數
 let stars = [];
-let magicAngle = 0;
+let magicAngle1 = 0;
+let magicAngle2 = 0;
 
-// 音效振盪器
+// 音效
 let synth;
 let soundEnabled = false; 
 
-// 22張大阿爾克那完整牌組
+// 🔮 22張大阿爾克那：深度多行中文釋義
 const cards = [
-  {name:"愚者", desc:"新的開始、冒險、自由、不拘一格。"},
-  {name:"魔術師", desc:"創造力、行動力、熟練技術、新計畫的開始。"},
-  {name:"女祭司", desc:"直覺、潛意識、智慧、靜心思考、隱秘。"},
-  {name:"皇后", desc:"豐盛、孕育、愛與美、大自然、物質享受。"},
-  {name:"皇帝", desc:"權力、控制、秩序、領導力、父親形象。"},
-  {name:"教皇", desc:"傳統、精神指引、體制、援助、儀式感。"},
-  {name:"戀人", desc:"選擇、和諧、伴侶關係、價值觀的契合。"},
-  {name:"戰車", desc:"意志力、勝利、克服障礙、掌控混亂。"},
-  {name:"力量", desc:"內在勇氣、 patience、溫柔掌控、克服恐懼。"},
-  {name:"隱者", desc:"內省、尋求真理、獨處、嚮導、深思熟慮。"},
-  {name:"命運之輪", desc:"轉折點、好運、命運、不可抗拒的改變。"},
-  {name:"正義", desc:"公平、誠實、因果報應、理性決定、法律。"},
-  {name:"倒吊人", desc:"換位思考、犧牲、等待、奉獻、全新視角。"},
-  {name:"死神", desc:"結束、新生、徹底的改變、淘汰舊事物。"},
-  {name:"節制", desc:"平衡、淨化、溝通、融合、細水長流。"},
-  {name:"惡魔", desc:"慾望、束縛、物質誘惑、成癮、內心陰暗。"},
-  {name:"高塔", desc:"突如其來的劇變、幻滅、打破限制、重生。"},
-  {name:"星星", desc:"希望、寧靜、靈感、療癒、美好的未來。"},
-  {name:"月亮", desc:"不安、迷茫、恐懼、幻覺、隱藏的秘密。"},
-  {name:"太陽", desc:"成功、快樂、活力、自信、光明正大。"},
-  {name:"審判", desc:"覺醒、復活、重大的決定、因果清算。"},
-  {name:"世界", desc:"圓滿、達成目標、旅程結束、完美結局。"}
+  {name:"愚者", desc:"新的開始、冒險與未知旅程。\n\n勇敢踏出第一步，\n不要過度擔心結果，\n新的機會正在等待你。"},
+  {name:"魔術師", desc:"創造力與萬事俱備的起點。\n\n你已擁有足夠的資源，\n發揮你的行動力與技巧，\n現在是展現才華的時刻。"},
+  {name:"女祭司", desc:"直覺、潛意識與內在智慧。\n\n暫時停下外在的追尋，\n保持靜心與沉穩，\n你的直覺會帶領你找到答案。"},
+  {name:"皇后", desc:"豐盛、孕育與溫暖的愛。\n\n物質與情感正迎來豐收，\n大膽享受大自然的恩賜，\n生活將充滿喜悅與感性。"},
+  {name:"皇帝", desc:"秩序、掌控力與穩定權力。\n\n展現你的領導與理智，\n建立清晰的規則與紀律，\n你有實力穩定眼前的局面。"},
+  {name:"教皇", desc:"精神指引、傳統與貴人相助。\n\n近期適合尋求長輩或\n專業人士的建議，\n遵循正道將獲得體制的支持。"},
+  {name:"戀人", desc:"感情與重要選擇的象徵。\n\n近期可能面臨關於感情、\n人際或未來方向的抉擇，\n請傾聽自己的內心。"},
+  {name:"戰車", desc:"堅強意志力與克服障礙的勝利。\n\n掌控內心的衝突與浮躁，\n鎖定目標，全力全速奔馳，\n你將成功突破重圍。"},
+  {name:"力量", desc:"內在勇氣與溫柔的掌控。\n\n真正強大的是內心的堅韌，\n用包容與耐性融化剛強，\n你將優雅地戰勝恐懼。"},
+  {name:"隱者", desc:"內省、獨處與尋求真理。\n\n這是一段與自己對話的時期，\n退回內心深處深思熟慮，\n你就是引領自己的那盞明燈。"},
+  {name:"命運之輪", desc:"命運的轉折點與嶄新機會。\n\n不可抗拒的改變正在發生，\n順應時勢的潮起潮落，\n好運與轉機即將降臨。"},
+  {name:"正義", desc:"公平、誠實與理性的因果決策。\n\n請用客觀平衡的角度審視，\n做出誠實、不偏頗的決定，\n付出什麼將收穫什麼。"},
+  {name:"倒吊人", desc:"換位思考、等待與短暫犧牲。\n\n換個全新的角度看待世界，\n眼前的停滯是必要的修行，\n靜候智慧的果實成熟。"},
+  {name:"死神", desc:"結束、淘汰與新生的陣痛。\n\n舊有的模式必須徹底結束，\n不要畏懼捨棄，\n唯有放手才能迎來全新的蛻變。"},
+  {name:"節制", desc:"和諧平衡、淨化與溝通融合。\n\n在衝突中尋找細水長流，\n完美控制情感與理智，\n交流將會順暢並各退一步。"},
+  {name:"惡魔", desc:"慾望、物質誘惑與內心束縛。\n\n注意那些讓你過度沉迷、\n或感到被制約的事物，\n覺察它是看清陰暗面的第一步。"},
+  {name:"高塔", desc:"突如其來的劇變與幻滅。\n\n舊有的限制與假象在崩塌，\n雖然震撼，但這能讓你\n在最堅固的基石上重新開始。"},
+  {name:"星星", desc:"希望、心靈療癒與美好未來。\n\n風暴過後迎來了寧靜夜空，\n保持樂觀與純粹的信念，\n祝福與靈感正悄悄治癒你。"},
+  {name:"月亮", desc:"迷茫不安、恐懼與隱藏的秘密。\n\n眼前面對的未知引發了焦慮，\n別被幻覺與流言黑影嚇倒，\n靜待迷霧散去、真相大白。"},
+  {name:"太陽", desc:"象徵成功與幸福。\n\n目前的努力將逐漸看見成果，\n保持樂觀態度，\n好消息即將到來。"},
+  {name:"審判", desc:"重要覺醒與重大的關鍵決定。\n\n聽從內心深處召喚的時刻，\n過去的努力將迎來最終清算，\n大膽跨入人生新階段。"},
+  {name:"世界", desc:"圓滿大結局、旅程結束與完美。\n\n一個重要的生命週期已達成，\n情感與目標皆獲得圓滿，\n準備好迎接更高層次的冒險。"}
 ];
 
 function setup(){
@@ -58,20 +59,25 @@ function setup(){
     console.log("AI Model Ready");
   });
   handpose.on("predict", results => {
-    predictions = results;
+    // ⭐【安全鎖】如果已經選定卡牌，就不再接收新的預測，防止畫面跳動
+    if (state !== "select") {
+      predictions = results;
+    }
   });
 
-  // ✨ 初始化星空粒子
-  for(let i = 0; i < 100; i++){
+  // ✨ 精美星空粒子（加入亮度屬性）
+  for(let i = 0; i < 120; i++){
     stars.push({
       x: random(width),
       y: random(height),
       size: random(1, 4),
-      speed: random(0.5, 2)
+      speed: random(0.3, 1.5),
+      brightness: random(100, 255),
+      blinkSpeed: random(2, 5)
     });
   }
 
-  // 🎵 安全初始化合成器音效
+  // 🎵 初始化合成器音效
   if (typeof p5.Oscillator !== 'undefined') {
     synth = new p5.Oscillator('sine');
     soundEnabled = true;
@@ -79,74 +85,108 @@ function setup(){
 }
 
 function draw(){
-  background(10, 10, 25); 
+  background(8, 8, 20); // 更深邃的神祕夜空藍
 
-  // 1. 背景特效：星空與旋轉魔法陣
+  // 1. 繪製升級版精美特效
   drawStarfield();
-  drawMagicCircle();
+  drawLuxuryMagicCircle();
 
-  // 2. 右上角相機
+  // 2. 右上角相機鏡頭
   image(video, width - 240, 20, 220, 160);
 
   // 3. 核心狀態機
   if (state === "start") {
     drawStartScreen();
   } else {
-    handleHandGesture();
+    handleHandGesture(); // 處理手勢
 
     if (state === "spinWait") {
-      spreadProgress = lerp(spreadProgress, 0, 0.1); // 緊緊疊在一起
+      spreadProgress = lerp(spreadProgress, 0, 0.1); 
       drawTarotFan();
       drawSpinWaitScreen();
     } else if (state === "play") {
-      spreadProgress = lerp(spreadProgress, 1, 0.08); // 優雅地張開成半圓
+      spreadProgress = lerp(spreadProgress, 1, 0.08); 
       drawTarotFan();
       drawPlayUI();
     } else if (state === "select") {
-      drawSelectScreen(); // 彈出單張發光結果
+      drawSelectScreen(); // 🔒 鎖定狀態，在此狀態下手勢不會再運作
     }
   }
 }
 
 // ==========================================
-// 🌌 背景特效系統
+// 🌌 升級：精美的星空與雙層旋轉魔法陣
 // ==========================================
 function drawStarfield() {
-  noStroke();
-  fill(255, 255, 255, 180);
   for(let star of stars) {
+    // 讓星星有呼吸閃爍的效果
+    star.brightness += sin(frameCount * star.blinkSpeed) * 5;
+    star.brightness = constrain(star.brightness, 80, 255);
+    
+    noStroke();
+    fill(255, 255, 255, star.brightness);
     ellipse(star.x, star.y, star.size);
+    
     star.y += star.speed; 
     if(star.y > height) star.y = 0;
   }
 }
 
-function drawMagicCircle() {
+function drawLuxuryMagicCircle() {
   push();
-  translate(width / 2, height / 2 + 100); // 往下一點作為半圓陣列的圓心
-  magicAngle += 0.3; 
-  rotate(magicAngle);
+  // 將圓心放在畫面下方展開陣列交會點
+  translate(width / 2, height / 2 + 320); 
   
+  // 雙層反向旋轉，更具動態感
+  magicAngle1 += 0.2; 
+  magicAngle2 -= 0.15;
+  
+  // --- 外層魔法陣 ---
+  push();
+  rotate(magicAngle1);
   noFill();
-  stroke(100, 150, 255, 40); 
+  stroke(100, 160, 255, 35); 
   strokeWeight(2);
-  ellipse(0, 0, 500);
-  ellipse(0, 0, 460);
+  ellipse(0, 0, 680);
+  ellipse(0, 0, 640);
   
+  // 外圈神祕幾何刻度
+  for(let i = 0; i < 24; i++) {
+    rotate(15);
+    line(0, -340, 0, -320);
+  }
+  pop();
+
+  // --- 內層魔法陣 ---
+  push();
+  rotate(magicAngle2);
+  noFill();
+  stroke(150, 100, 255, 30);
+  strokeWeight(1.5);
+  ellipse(0, 0, 560);
+  ellipse(0, 0, 200);
+  
+  // 內圈星芒線條
   for(let i = 0; i < 12; i++) {
     rotate(30);
-    line(0, -250, 0, 250);
+    line(0, -280, 0, 280);
+    rect(-15, -15, 30, 30);
   }
+  pop();
+  
   pop();
 }
 
 // ==========================================
-// ✋ 手勢核心邏輯
+// ✋ 手勢核心邏輯（含選中鎖定機制）
 // ==========================================
 function handleHandGesture() {
+  // ⭐ 如果已經進入選定結果狀態，完全停止手勢邏輯（不再更新選牌）
+  if (state === "select") return;
+
   if (predictions.length === 0) {
     if (state === "play" && isAutoSpin) {
-      autoMode();
+      autoMode(); 
     }
     return;
   }
@@ -155,7 +195,6 @@ function handleHandGesture() {
   let fist = isFist(lm);
 
   if (state === "spinWait") {
-    // ✊ 偵測由拳頭「張開」的瞬間觸發
     if (!fist) {
       playTarotSound(440, 0.1); 
       state = "play";
@@ -165,7 +204,6 @@ function handleHandGesture() {
   else if (state === "play") {
     let x = lm[8][0]; 
 
-    // 手掌左右移動切換
     if (frameCount % 6 === 0) { 
       if (x < 70) {
         index = (index - 1 + cards.length) % cards.length;
@@ -178,11 +216,12 @@ function handleHandGesture() {
       }
     }
 
-    // ✊ 握拳確認（大幅縮短時間至 45 幀，約 0.75 秒）
+    // ✊ 握拳快速鎖定（45幀 ≈ 0.75秒）
     if (fist) {
       hold++;
       if (hold > 45) { 
         state = "select";
+        predictions = []; // 🔒 清空資料鎖定畫面，不給別的手勢干擾
         playTarotSound(600, 0.4); 
       }
     } else {
@@ -192,58 +231,60 @@ function handleHandGesture() {
 }
 
 // ==========================================
-// 🃏 核心：22張牌半圓展開與微微凸出效果
+// 🃏 升級：更大的半圓展開陣列與高質感凸出光暈
 // ==========================================
 function drawTarotFan() {
   push();
-  // 以畫面中下方為扇形的旋轉圓心
-  translate(width / 2, height / 2 + 250); 
+  // 圓心維持在中下方
+  translate(width / 2, height / 2 + 320); 
   
   let totalCards = cards.length;
-  // 設定展開的總夾角 (120度夾角分布)
-  let startAngle = -60 * spreadProgress;
-  let endAngle = 60 * spreadProgress;
+  // 大半圓夾角分配
+  let startAngle = -70 * spreadProgress;
+  let endAngle = 70 * spreadProgress;
   let angleStep = (totalCards > 1) ? (endAngle - startAngle) / (totalCards - 1) : 0;
 
   for (let i = 0; i < totalCards; i++) {
     push();
-    // 計算每張卡牌依照比例該有的角度
     let currentAngle = startAngle + i * angleStep;
     rotate(currentAngle);
     
-    // 預設基本半徑（從圓心推開的距離）
-    let radius = -350; 
+    // ⭐ 半圓半徑加大（原本 -350 改為 -430，讓陣列變大）
+    let radius = -430; 
     
-    // ⭐【關鍵效果】如果這張牌是目前選中的牌，往外凸出 30 像素，並發微光
+    // 目前選中的卡牌：向上突起且加上華麗的天藍色擴散光暈
     if (i === index && state === "play") {
-      radius -= 30; 
-      // 凸出牌的淡淡外框發光
+      radius -= 45; // 凸出程度變更明顯
+      
+      // 凸出卡牌的流光外溢效果
       rectMode(CENTER);
-      fill(255, 215, 0, 40);
+      let pulseGlow = sin(frameCount * 8) * 8 + 12;
+      fill(0, 191, 255, pulseGlow);
       noStroke();
-      rect(0, radius, 90, 150, 8);
+      rect(0, radius, 95, 155, 10);
     }
 
-    // 繪製單張卡牌外觀
+    // 繪製卡牌主體
     rectMode(CENTER);
-    fill(25, 25, 50);
+    fill(20, 20, 45); // 深邃星空藍卡背
+    
     if (i === index && state === "play") {
-      stroke(255, 215, 0); // 被選中的卡牌金邊
-      strokeWeight(2);
+      stroke(255, 215, 0); // 凸出選中牌用亮金色邊框
+      strokeWeight(2.5);
     } else {
-      stroke(255, 255, 255, 100);
+      stroke(255, 255, 255, 90);
       strokeWeight(1);
     }
     rect(0, radius, 80, 140, 8);
     
-    // 卡背神祕花紋
-    stroke(255, 215, 0, 40);
+    // 卡背星盤刻線
+    stroke(255, 215, 0, 25);
     rect(0, radius, 70, 130, 6);
+    ellipse(0, radius, 40);
     
-    // 中間畫個「？」
     noStroke();
     if (i === index && state === "play") fill(255, 215, 0);
-    else fill(150);
+    else fill(130);
     textAlign(CENTER, CENTER);
     textSize(24);
     text("?", 0, radius);
@@ -254,13 +295,12 @@ function drawTarotFan() {
 }
 
 // ==========================================
-// 🖥️ 畫面繪製介面
+// 🖥️ 介面繪製（完美鎖定文字在卡牌框內）
 // ==========================================
 
-// 1. 開場說明書
 function drawStartScreen() {
   rectMode(CENTER);
-  fill(15, 15, 35, 230);
+  fill(12, 12, 28, 240);
   stroke(138, 43, 226); 
   strokeWeight(3);
   rect(width / 2, height / 2, 520, 460, 20);
@@ -303,27 +343,25 @@ function drawStartScreen() {
   text("滑鼠點擊畫面進入占卜", width / 2, height / 2 + 170);
 }
 
-// 2. 等待張開手掌提示
 function drawSpinWaitScreen() {
   fill(255);
   textAlign(CENTER, CENTER);
   textSize(22);
   fill(0, 255, 255);
-  text("🔮 請面向鏡頭「先握拳再張開」展開大阿爾克那陣列", width / 2, height / 2 - 80);
+  text("🔮 請面向鏡頭「先握拳再張開」展開大阿爾克那陣列", width / 2, height / 2 - 150);
 }
 
-// 3. 玩牌時的圓形進度條 UI
 function drawPlayUI() {
   if (hold > 0) {
     push();
-    translate(width / 2, height / 2 - 80);
+    translate(width / 2, height / 2 - 150);
     noFill();
     stroke(255, 255, 255, 40);
     strokeWeight(6);
     ellipse(0, 0, 60); 
     
     stroke(0, 191, 255); 
-    let endAngle = map(hold, 0, 45, 0, 360); // 45幀快速確認
+    let endAngle = map(hold, 0, 45, 0, 360); 
     arc(0, 0, 60, 60, -90, endAngle - 90);
     
     noStroke();
@@ -337,69 +375,70 @@ function drawPlayUI() {
     textAlign(CENTER, CENTER);
     textSize(16);
     if(isAutoSpin) {
-      text("［自動巡航中］握拳鎖定當前凸出的卡牌", width / 2, height / 2 - 80);
+      text("［自動巡航中］握拳鎖定當前凸出的卡牌", width / 2, height / 2 - 150);
     } else {
-      text("［手動選牌中］左右移動切換 / 握拳快速確認", width / 2, height / 2 - 80);
+      text("［手動選牌中］左右移動切換 / 握拳快速確認", width / 2, height / 2 - 150);
     }
   }
 }
 
-// 4. 🎉 抽中牌結果：所有文字都在精緻的卡牌框內！
+// 🎉 5. 抽中牌結果：字體縮小、支援隔行、極致嚴格包覆在卡牌框內
 function drawSelectScreen() {
   push();
   rectMode(CENTER);
   
-  // 牌身豪華多層發光特效
+  // 牌身金光發光特效
   let glow = sin(frameCount * 6) * 15 + 15;
   for(let i = 4; i > 0; i--) {
     fill(255, 215, 0, 8);
     stroke(255, 215, 0, 50 / i);
     strokeWeight(i * 5 + glow);
-    rect(width / 2, height / 2 - 40, 260, 380, 15);
+    rect(width / 2, height / 2 - 20, 280, 420, 15); // 微調主框尺寸
   }
 
   // 卡牌主框體
-  fill(15, 15, 30);
+  fill(16, 16, 35);
   stroke(255, 215, 0);
-  strokeWeight(3);
-  rect(width / 2, height / 2 - 40, 260, 380, 15);
+  strokeWeight(3.5);
+  rect(width / 2, height / 2 - 20, 280, 420, 15);
 
-  // 內部裝飾細線框（確保文字都在此框內）
-  stroke(255, 215, 0, 80);
+  // 內部裝飾內細框（確保文字死死鎖在框內）
+  stroke(255, 215, 0, 90);
   strokeWeight(1);
-  rect(width / 2, height / 2 - 40, 230, 350, 10);
+  rect(width / 2, height / 2 - 20, 250, 390, 10);
 
-  // --- 以下所有文字皆在框內排版 ---
   noStroke();
   
-  // 1. 塔羅牌中文名字
+  // 📥 【文字排版核心優化】
+  // 1. 牌名 (中文加大置中)
   fill(255, 215, 0);
   textAlign(CENTER, CENTER);
-  textSize(28);
-  text(cards[index].name, width / 2, height / 2 - 160);
+  textSize(24); // 微調字體大小，視覺比例最完美
+  text(cards[index].name, width / 2, height / 2 - 170);
 
-  // 分隔小符號
-  fill(255, 215, 0, 150);
-  textSize(14);
-  text("✦ 占卜啟示 ✦", width / 2, height / 2 - 110);
+  // 分隔花飾
+  fill(255, 215, 0, 140);
+  textSize(11);
+  text("✦ ARCHETYPAL REVELATION ✦", width / 2, height / 2 - 135);
 
-  // 2. 牌意中文解釋文字自動換行（嚴格限縮在框內寬度）
-  fill(240);
-  textSize(16);
+  // 2. 深入牌義解釋文字（小字體、居中對齊、完美容納在框中）
+  fill(235);
+  textSize(12.5); // 精細調整解釋文字大小，杜絕超出卡牌外
   textAlign(CENTER, TOP);
   textWrap(WORD);
-  // 在寬度 200 的範疇內自動換行，完美待在框內
-  text(cards[index].desc, width / 2 - 100, height / 2 - 70, 200);
+  
+  // 寬度限制設為 220 像素，完美符合內邊框
+  text(cards[index].desc, width / 2 - 110, height / 2 - 100, 220);
   pop();
 
-  // 重新占卜按鈕（在卡牌框外下方）
+  // 重新占卜按鈕（完美待在卡牌框的下方）
   drawResetButton();
 }
 
 function drawResetButton() {
   push();
   rectMode(CENTER);
-  let btnY = height - 80;
+  let btnY = height - 60;
   
   if (mouseX > width/2 - 100 && mouseX < width/2 + 100 && mouseY > btnY - 22 && mouseY < btnY + 22) {
     fill(138, 43, 226);
@@ -422,7 +461,7 @@ function drawResetButton() {
 }
 
 // ==========================================
-// ⚙️ 其他核心運作工具
+// ⚙️ 工具功能
 // ==========================================
 function autoMode(){
   if (frameCount % 45 === 0){ 
@@ -440,7 +479,7 @@ function playTarotSound(freq, duration) {
   try {
     synth.start();
     synth.freq(freq);
-    synth.amp(0.2, 0.05);
+    synth.amp(0.18, 0.05);
     setTimeout(() => {
       synth.amp(0, 0.1);
       setTimeout(() => synth.stop(), 100);
@@ -454,7 +493,7 @@ function mousePressed() {
     state = "spinWait";
   } 
   else if (state === "select") {
-    let btnY = height - 80;
+    let btnY = height - 60;
     if (mouseX > width/2 - 100 && mouseX < width/2 + 100 && mouseY > btnY - 22 && mouseY < btnY + 22) {
       playTarotSound(440, 0.1);
       hold = 0;
