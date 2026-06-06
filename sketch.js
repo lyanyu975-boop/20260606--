@@ -2,29 +2,30 @@ let video;
 let handpose;
 let predictions = [];
 
-let state = "start";
 let index = 0;
-let flip = 0;
-let holding = 0;
+let state = "play";
 
 const cards = [
-{name:"愚者",desc:"新的開始"},
-{name:"魔術師",desc:"創造與行動"},
-{name:"女祭司",desc:"直覺與內在智慧"},
+{name:"愚者",desc:"新的開始與自由"},
+{name:"魔術師",desc:"創造與行動力"},
+{name:"女祭司",desc:"直覺與智慧"},
 {name:"皇后",desc:"愛與豐盛"},
-{name:"皇帝",desc:"秩序與控制"},
+{name:"皇帝",desc:"秩序與權力"},
 {name:"戀人",desc:"選擇與關係"},
-{name:"戰車",desc:"勝利與意志"},
+{name:"戰車",desc:"意志與勝利"},
 {name:"力量",desc:"勇氣與內在力量"}
 ];
 
 function setup(){
-createCanvas(windowWidth, windowHeight, WEBGL);
 
+createCanvas(windowWidth, windowHeight);
+
+// 📷 攝影機
 video = createCapture(VIDEO);
-video.size(220,165);
+video.size(220,160);
 video.hide();
 
+// 🖐️ 手勢模型
 handpose = ml5.handpose(video, () => {
 console.log("model ready");
 });
@@ -36,122 +37,67 @@ function draw(){
 
 background(0);
 
-// 📷 右上角鏡頭（2D疊加）
-resetMatrix();
-image(video, width/2 + width/2 - 240, -height/2 + 20, 220, 165);
-translate(-width/2, -height/2);
+// =====================
+// 📷 右上角鏡頭（穩定）
+// =====================
+image(video, width - 240, 20, 220, 160);
 
-if(state === "start"){
-drawStart();
-return;
-}
-
-if(predictions.length === 0){
+// =====================
+// 🃏 卡牌（保證一定會看到）
+// =====================
 fill(255);
 textAlign(CENTER);
-text("請將手放入鏡頭", 0, 0);
+
+// 卡牌框
+stroke(255);
+noFill();
+rect(width/2 - 80, height/2 - 120, 160, 220, 10);
+
+// 卡牌內容
+noStroke();
+textSize(26);
+text(cards[index].name, width/2, height/2 - 10);
+
+textSize(16);
+text(cards[index].desc, width/2, height/2 + 40);
+
+// =====================
+// ❗ 沒手也能操作（避免黑畫面）
+// =====================
+if(predictions.length == 0){
+
+textSize(14);
+fill(200);
+text("請將手放入鏡頭", width/2, height - 80);
+
 return;
 }
 
 let lm = predictions[0].landmarks;
+
+// 👉 食指
 let x = lm[8][0];
 
-// ✋ 張手
-if(isOpen(lm)){
-state = "select";
-}
-
 // =====================
-// 🎴 3D卡牌
+// 👉 左右選牌
 // =====================
-push();
-
-translate(0,0,0);
-
-// 選牌滑動
-if(state === "select"){
 if(x < 150) index--;
 if(x > 350) index++;
+
 index = constrain(index,0,cards.length-1);
-}
 
-// ✨ 翻牌動畫
-if(state === "flip"){
-flip += 0.1;
-}
-
-rotateY(flip);
-
-// 🃏 卡牌本體（3D平面）
-fill(30,80,200);
-stroke(255);
-box(180,260,10);
-
-// 🪄 卡牌文字
-push();
-translate(0,0,6);
-fill(255);
-textAlign(CENTER);
-textSize(18);
-
-if(flip < 1){
-text("塔羅牌",0,0);
-}else{
-text(cards[index].name,0,0);
-}
-pop();
-
-pop();
-
-// ✊ 握拳
+// =====================
+// ✊ 握拳（簡化穩定版）
+// =====================
 if(isFist(lm)){
-holding++;
-
-if(holding > 40){
-state = "flip";
-}
-}else{
-holding = 0;
-}
-
-// 結果
-if(state === "flip" && flip > 3){
-drawResult();
+text("確認中...", width/2, height - 50);
 }
 }
 
 // =====================
-
-function drawStart(){
-fill(255);
-textAlign(CENTER);
-textSize(30);
-text("塔羅牌占卜",0,0);
-textSize(16);
-text("點擊開始",0,40);
-}
-
-function drawResult(){
-resetMatrix();
-background(0);
-
-fill(255);
-textAlign(CENTER);
-
-textSize(32);
-text(cards[index].name,0,0);
-
-textSize(16);
-text(cards[index].desc,0,40);
-}
-
+// 🖐️ 手勢（穩定簡化版）
 // =====================
-// 🖐️ 手勢
-// =====================
-function isOpen(lm){
-return lm[8][1] < lm[6][1];
-}
-
 function isFist(lm){
-return lm[8][1] > lm[6][1];
+return lm[8][1] > lm[6][1] &&
+lm[12][1] > lm[10][1];
 }
