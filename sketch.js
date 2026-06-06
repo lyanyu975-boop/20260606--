@@ -28,9 +28,9 @@ const cards = [
   { name: "教皇", desc: ["精神指引、傳統與貴人相助。", "近期適合尋求長輩或", "", "專業人士的建議，", "", "遵循正道將獲得體制的支持。"] },
   { name: "戀人", desc: ["感情與重要選擇的象徵。", "近期可能面臨關於感情、", "", "人際或未來方向的抉擇，", "", "請傾聽自己的內心。"] },
   { name: "戰車", desc: ["堅強意志力與克服障礙的勝利。", "掌控內心的衝突與浮躁，", "", "鎖定目標，全力全速奔馳，", "", "你將成功突破重圍。"] },
-  { name: "力量", desc: ["內在勇氣與溫柔的掌控。", "真正強大的是內心的堅韌，", "", "用包容與耐性融化剛強，", "", "你將優雅地戰勝恐懼。"] },
+  { name: "力量", desc: ["內在勇氣與溫柔的掌控。", "真正強大的是內心的堅韌，", "", "用包容與耐性融化剛強 nudge，", "", "你將優雅地戰勝恐懼。"] },
   { name: "隱者", desc: ["內省、獨處與尋求真理。", "這是一段與自己對話的時期，", "", "退回內心深處深思熟慮，", "", "你就是引領自己的那盞明燈。"] },
-  { name: "命運之輪", desc: ["命運的轉折點與嶄新機會。", "不可抗拒的改變正在發生，", "", "順應時勢的潮起潮落，", "", "好運與轉機即將降臨。"] },
+  { name: "命運之輪", desc: ["命運的轉折點與嶄新機會。", "不可抗拒的改變正在放生，", "", "順應時勢的潮起潮落，", "", "好運與轉機即將降臨。"] },
   { name: "正義", desc: ["公平、誠實與理性的因果決策。", "請用客觀平衡的角度審視，", "", "做出誠實、不偏頗的決定，", "", "付出什麼將收穫什麼。"] },
   { name: "倒吊人", desc: ["換位思考、等待與短暫犧牲。", "換個全新的角度看待世界，", "", "眼前的停滯是必要的修行，", "", "靜候智慧的果實成熟。"] },
   { name: "死神", desc: ["結束、淘汰與新生的陣痛。", "舊有的模式必須徹底結束，", "", "不要畏懼捨棄，", "", "唯有放手才能迎來全新的蛻變。"] },
@@ -58,12 +58,11 @@ function setup(){
     console.log("AI Model Ready");
   });
   handpose.on("predict", results => {
-    // 🔒【安全硬鎖】只要進入 select 結果狀態，直接拒絕更新手勢資料，防止殘留訊號干擾
-    if (state !== "select") {
-      predictions = results;
-    } else {
+    if (state === "select") {
       predictions = [];
+      return;
     }
+    predictions = results;
   });
 
   // ✨ 精美星空粒子
@@ -91,10 +90,10 @@ function draw(){
   drawStarfield();
   drawLuxuryMagicCircle();
 
-  // 🔄【鏡頭左右翻轉】將右上角相機畫面水平鏡像
+  // 🔄 鏡頭左右翻轉
   push();
-  translate(width - 20, 20); // 移至右上角起點
-  scale(-1, 1);              // 水平翻轉
+  translate(width - 20, 20); 
+  scale(-1, 1);              
   image(video, 0, 0, 220, 160); 
   pop();
 
@@ -169,10 +168,9 @@ function drawLuxuryMagicCircle() {
 }
 
 // ==========================================
-// ✋ 手勢核心邏輯（含左右翻轉座標修正與雙重硬鎖）
+// ✋ 手勢核心邏輯（修正：蓄力時凍結移動、手勢方向一致）
 // ==========================================
 function handleHandGesture() {
-  // 🔒 第一重硬鎖：如果是結果畫面，直接阻斷所有手勢處理，牌面絕對不再移動！
   if (state === "select") return;
 
   if (predictions.length === 0) return;
@@ -187,30 +185,34 @@ function handleHandGesture() {
     }
   } 
   else if (state === "play") {
-    // 🔄【手勢座標鏡像翻轉】因為鏡頭翻轉了，X 座標也要用 (220 - 原座標) 修正，讓操作方向一致
+    // 🔄 水平鏡像下的物理 X 座標（手往左移，這個 x 就會變小；手往右移，x 就會變大）
     let x = 220 - lm[8][0]; 
 
-    // 只有手勢左右擺動時切換
-    if (frameCount % 5 === 0) { 
-      if (x > 155) { // 原本小於65改為大於155（因為鏡像了）
-        index = (index - 1 + cards.length) % cards.length;
-        playTarotSound(350, 0.03);
-      } else if (x < 65) { // 原本大於155改為小於65
-        index = (index + 1) % cards.length;
-        playTarotSound(380, 0.03);
+    // 🛑【核心修正 1】只要手是在「握拳蓄力（hold > 0）」或當前是握拳狀態下，直接跳過移動切換！
+    if (!fist && hold === 0) { 
+      // 🔄【核心修正 2】手掌往左擺（x 變小）卡牌就往左切換；手掌往右擺（x 變大）卡牌就往右切換
+      if (frameCount % 5 === 0) { 
+        if (x < 75) { 
+          index = (index - 1 + cards.length) % cards.length;
+          playTarotSound(350, 0.03);
+        } else if (x > 145) { 
+          index = (index + 1) % cards.length;
+          playTarotSound(380, 0.03);
+        }
       }
     }
 
-    // ✊ 快速確認
+    // ✊ 快速確認與藍色圈圈蓄力
     if (fist) {
       hold++;
       if (hold > 45) { 
+        predictions = []; 
         state = "select";
-        predictions = []; // 🔒 第二重硬鎖：瞬間清空手勢快取
         playTarotSound(600, 0.4); 
       }
     } else {
-      hold = max(0, hold - 2); 
+      // 如果中途放開手，蓄力條迅速扣回 0，卡牌便能重新自由移動
+      hold = max(0, hold - 3); 
     }
   }
 }
@@ -328,9 +330,9 @@ function drawStartScreen() {
   textSize(14);
   fill(180);
   text("1. 進入後請伸出手掌，先「握拳再張開」來展開牌組。", startX, height / 2 + 5);
-  text("2. 手掌「左右移動」可以手動切換選擇卡牌（已修正鏡像方向）。", startX, height / 2 + 35);
-  text("3. 系統不會自動選牌，完全跟隨你的手勢擺動切換。", startX, height / 2 + 65);
-  text("4. 面對鏡頭「快速握拳」蓄力條蓄滿即鎖定抽牌。", startX, height / 2 + 95);
+  text("2. 手掌「左右移動」切換卡牌（手往左牌往左，手往右牌往右）。", startX, height / 2 + 35);
+  text("3. 「握拳蓄力」時藍色圈圈倒數，此時卡牌會完全凍結不跳牌。", startX, height / 2 + 65);
+  text("4. 蓄力中途放開手即可恢復移動；蓄力條滿即完成鎖定抽牌。", startX, height / 2 + 95);
 
   rectMode(CENTER);
   fill(138, 43, 226, 180);
@@ -373,7 +375,7 @@ function drawPlayUI() {
     fill(200, 220, 255);
     textAlign(CENTER, CENTER);
     textSize(16);
-    text("［手動選牌中］左右移動切換 / 握拳快速確認", width / 2, height / 2 - 160);
+    text("［手動選牌中］左右移動切換 / 握拳蓄力確認", width / 2, height / 2 - 160);
   }
 }
 
