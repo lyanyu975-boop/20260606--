@@ -19,10 +19,12 @@ let playerName = "";
 let nameInput;
 let leaderboard = [];
 
-// 🌀 避震器與防甩落快取
+// 🌀 避震器全域快取 (修正：每影格僅計算一次，防止手骨變形)
 let smoothCenterRx = -1;
 let smoothCenterRy = -1;
-let unpinchFrames = 0; // 防誤放緩衝計算
+let currentAvgRx = 0;
+let currentAvgRy = 0;
+let unpinchFrames = 0; 
 
 // ✨ 華麗特效
 let starsFar = [];
@@ -58,7 +60,7 @@ const cards = [
   { name: "月亮", desc: ["迷茫不安、恐懼與隱藏的秘密。", "眼前面對的未知引發了焦慮，", "", "別被幻覺與流言黑影嚇倒，", "", "靜待迷霧散去、真相大白。"] },
   { name: "太陽", desc: ["象徵成功與幸福。", "目前的努力將逐漸看見成果，", "", "保持樂觀態度，", "", "好消息即將到來。"] },
   { name: "審判", desc: ["重要覺醒與重大的關鍵決定。", "聽從內心深處召喚的時刻，", "", "過去的努力將迎來最終清算，", "", "大膽跨入人生新階段。"] },
-  { name: "世界", desc: ["圓滿大結束、旅程結束與完美。", "一個重要的生命週期已達成，", "", "情感與目標皆獲得圓滿，", "", "準備好迎接更高層次的冒險。"] }
+  { name: "世界", desc: ["圓滿大結局、旅程結束與完美。", "一個重要的生命週期已達成，", "", "情感與目標皆獲得圓滿，", "", "準備好迎接更高層次的冒險。"] }
 ];
 
 function setup(){
@@ -106,8 +108,7 @@ function draw(){
 
   // 斷手時重置濾波器快取
   if (predictions.length === 0) {
-    smoothCenterRx = -1;
-    smoothCenterRy = -1;
+    smoothCenterRx = -1; smoothCenterRy = -1;
   }
 
   drawStarfield(predictions.length > 0 ? (220 - predictions[0].landmarks[8][0] - 110) : 0);
@@ -122,7 +123,20 @@ function draw(){
     hasHand = true;
     let lm = predictions[0].landmarks;
     
-    // 🎛️ 雙重動態捏合閥值 (未抓取時嚴格，抓取後放寬抗噪)
+    // 🚀 【修正：每影格只在最外面計算一次平滑中心點，防止手指變形蜘蛛網】
+    let sumRx = 0, sumRy = 0;
+    for (let i = 0; i < lm.length; i++) { sumRx += (220 - lm[i][0]); sumRy += lm[i][1]; }
+    currentAvgRx = sumRx / 21;
+    currentAvgRy = sumRy / 21;
+    
+    if (smoothCenterRx === -1) {
+      smoothCenterRx = currentAvgRx; smoothCenterRy = currentAvgRy;
+    } else {
+      smoothCenterRx = lerp(smoothCenterRx, currentAvgRx, 0.16); 
+      smoothCenterRy = lerp(smoothCenterRy, currentAvgRy, 0.16);
+    }
+
+    // 🎛️ 雙重動態捏合閥值
     let rawDist = dist(lm[4][0], lm[4][1], lm[8][0], lm[8][1]);
     let currentPinchThresh = (grabbedItem !== null) ? 46 : 31; 
     if (rawDist < currentPinchThresh) isPinching = true;
@@ -150,44 +164,41 @@ function draw(){
     else if (state === "select") drawSelectScreen(); 
   }
 
-  // 📷 右上小視訊
+  // 📷 【修正：右上小視訊鏡像與超出螢幕邊界 Bug】
   if (state !== "game2" && state !== "lobby" && state !== "game2_name") {
-    push(); translate(width - 20, 20); scale(-1, 1); image(video, -220, 0, 220, 160); pop();
+    // 1. 渲染視訊本體
+    push(); 
+    translate(width - 20, 20); 
+    scale(-1, 1); 
+    image(video, 0, 0, 220, 160); // 修正：將 -220 改為 0，防止鏡像後被推到右邊牆外
+    pop();
+    
+    // 2. 加上外圍對齊裝飾外框
+    push();
+    noFill(); stroke(138, 43, 226, 180); strokeWeight(2);
+    rectMode(CORNER);
+    rect(width - 240, 20, 220, 160, 8);
+    pop();
   }
 }
 
-// 🔀 避震座標映射器 (抗噪核心)
+// 🔀 避震座標映射器
 function getHandCoords(pt, currentMode) {
   let rx = 220 - pt[0], ry = pt[1];
   if (currentMode === "game2") {
-    let lm = predictions[0].landmarks;
-    let sumRx = 0, sumRy = 0;
-    for (let i = 0; i < lm.length; i++) { sumRx += (220 - lm[i][0]); sumRy += lm[i][1]; }
-    let avgRx = sumRx / 21;
-    let avgRy = sumRy / 21;
-    
-    // 🚀 核心避震：使用 lerp 讓整隻手的中心移動變得極度平滑
-    if (smoothCenterRx === -1) {
-      smoothCenterRx = avgRx;
-      smoothCenterRy = avgRy;
-    } else {
-      smoothCenterRx = lerp(smoothCenterRx, avgRx, 0.16); 
-      smoothCenterRy = lerp(smoothCenterRy, avgRy, 0.16);
-    }
-    
     let screenCenterX = map(smoothCenterRx, 45, 175, 0, width, true);
     let screenCenterY = map(smoothCenterRy, 35, 125, 0, height, true);
-    
-    // 局部手指微幅抖動不進行大映射放大，消除顫抖
-    return { x: screenCenterX + (rx - avgRx) * 1.3, y: screenCenterY + (ry - avgRy) * 1.3 };
+    // 使用全域算好的、統一影格內的一致中心點，完美保持手掌形狀不扭曲
+    return { x: screenCenterX + (rx - currentAvgRx) * 1.3, y: screenCenterY + (ry - currentAvgRy) * 1.3 };
   } else {
-    return { x: (width - 240) + map(rx, 0, 220, 0, 220), y: 20 + map(ry, 0, 160, 0, 160) };
+    // 完美貼合右上角小框 (小框位於 width-240 到 width-20)
+    return { x: (width - 240) + rx, y: 20 + ry };
   }
 }
 
-// 🦴 骨架渲染器 (微縮卡牌版)
+// 🦴 骨架渲染器
 function drawHandSkeleton(lm, currentMode) {
-  stroke(0, 255, 255, 160); strokeWeight(currentMode === "game2" ? 1.0 : 0.6);
+  stroke(0, 255, 255, 160); strokeWeight(currentMode === "game2" ? 1.2 : 0.7);
   let fingers = [[0,1,2,3,4],[0,5,6,7,8],[0,9,10,11,12],[0,13,14,15,16],[0,17,18,19,20],[5,9,13,17]];
   for (let f of fingers) {
     for (let i = 0; i < f.length - 1; i++) {
@@ -198,7 +209,7 @@ function drawHandSkeleton(lm, currentMode) {
   noStroke(); fill(0, 255, 255, 220);
   for (let i = 0; i < lm.length; i++) {
     let pt = getHandCoords(lm[i], currentMode);
-    ellipse(pt.x, pt.y, currentMode === "game2" ? 3.5 : 1.5);
+    ellipse(pt.x, pt.y, currentMode === "game2" ? 4 : 2);
   }
 }
 
@@ -248,7 +259,7 @@ function drawGame2Intro() {
   drawLobbyButton(width/2, height/2 + 140, "開始儀式", color(138, 43, 226));
 }
 
-// 🤏 連連看核心 (防疊加與多圈圈)
+// 🤏 連連看核心
 function initGame2Data() {
   game2Score = 0; game2Timer = game2MaxTime; pinchTargets = []; grabbedItem = null; unpinchFrames = 0;
   let symbols = ["☀️", "🌙", "⭐", "🪐", "🌀", "🔮", "💎", "🧿"]; 
@@ -266,29 +277,23 @@ function initGame2Data() {
   }
 }
 
-// 🛡️ 核心防斷開、防誤落邏輯
 function runGame2Logic(mX, mY, hasHand, isPinching) {
   if (game2Timer > 0) game2Timer--;
   
   if (hasHand) {
     if (isPinching) {
-      unpinchFrames = 0; // 一旦偵測到捏合，立刻清除斷開計數器
+      unpinchFrames = 0; 
       if (!grabbedItem) {
-        // 磁吸範圍擴大至 68，讓抓取極為靈敏輕鬆
         for (let t of pinchTargets) {
-          if (!t.isMatched && dist(mX, mY, t.x, t.y) < 68) { 
-            grabbedItem = t; 
-            break; 
-          }
+          if (!t.isMatched && dist(mX, mY, t.x, t.y) < 68) { grabbedItem = t; break; }
         }
       } else {
         grabbedItem.x = mX; grabbedItem.y = mY;
       }
     } else {
-      // 🛡️ 關鍵防抖機制：當 AI 瞬間誤判斷開時，啟用 5 影格的緩衝盾牌
       if (grabbedItem) {
         unpinchFrames++;
-        if (unpinchFrames >= 5) { // 必須連續 5 格都沒捏住（約0.15秒），才會真正執行放下/判定
+        if (unpinchFrames >= 5) { 
           for (let t of pinchTargets) {
             if (t.id !== grabbedItem.id && !t.isMatched && t.icon === grabbedItem.icon && dist(grabbedItem.x, grabbedItem.y, t.x, t.y) < 70) {
               t.isMatched = grabbedItem.isMatched = true; 
@@ -298,16 +303,14 @@ function runGame2Logic(mX, mY, hasHand, isPinching) {
               break;
             }
           }
-          grabbedItem = null;
-          unpinchFrames = 0;
+          grabbedItem = null; unpinchFrames = 0;
         } else {
-          // 在緩衝期內，物件依舊吸附在手心跟著走，不會因為路過其他物件而掉落！
           grabbedItem.x = mX; grabbedItem.y = mY;
         }
       }
     }
   } else {
-    unpinchFrames = 0; // 移出鏡頭則直接不計算
+    unpinchFrames = 0;
   }
 
   let active = 0;
