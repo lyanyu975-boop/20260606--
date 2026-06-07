@@ -118,8 +118,9 @@ function draw(){
     hasHand = true;
     let lm = predictions[0].landmarks;
     
+    // 判斷原生存感應器下的捏合距離
     let rawDist = dist(lm[4][0], lm[4][1], lm[8][0], lm[8][1]);
-    if (rawDist < 28) {
+    if (rawDist < 25) {
       isPinching = true;
     }
 
@@ -141,7 +142,6 @@ function draw(){
   } else if (state === "start") {
     drawStartScreen();
   } else if (state === "game2") {
-    // 🛠️ 修正處：正確傳入修復後的變數 midY（先前誤植為 mY）
     runGame2Logic(midX, midY, hasHand, isPinching);
   } else {
     handleHandGesture(); 
@@ -173,17 +173,40 @@ function draw(){
 }
 
 // ==========================================
-// 🔀 核心：座標緩衝映射器
+// 🔀 核心優化：手掌中心點映射器（縮小手勢範圍至卡牌大小）
 // ==========================================
 function getHandCoords(pt, currentMode) {
   let rx = 220 - pt[0]; 
   let ry = pt[1];
   
   if (currentMode === "game2") {
-    return {
-      x: map(rx, 30, 190, 0, width, true), 
-      y: map(ry, 25, 135, 0, height, true)
-    };
+    if (predictions.length > 0) {
+      let lm = predictions[0].landmarks;
+      
+      // 1. 計算整隻手的中心點位置 (21個點的平均值)
+      let sumRx = 0, sumRy = 0;
+      for (let i = 0; i < lm.length; i++) {
+        sumRx += (220 - lm[i][0]);
+        sumRy += lm[i][1];
+      }
+      let avgRx = sumRx / lm.length;
+      let avgRy = sumRy / lm.length;
+      
+      // 2. 將手掌「中心點」映射到整個大螢幕範圍移動
+      let screenCenterX = map(avgRx, 45, 175, 0, width, true);
+      let screenCenterY = map(avgRy, 35, 125, 0, height, true);
+      
+      // 3. 限制手指骨架本身的張開間距（使其保持在卡牌大小 70px 左右）
+      let diffX = rx - avgRx;
+      let diffY = ry - avgRy;
+      let handScale = 1.3; // ✨ 黃金比例：手勢外觀大小剛好縮減到與卡牌同寬
+      
+      return {
+        x: screenCenterX + diffX * handScale,
+        y: screenCenterY + diffY * handScale
+      };
+    }
+    return { x: mouseX, y: mouseY };
   } else {
     let camX = width - 240;
     let camY = 20;
@@ -195,11 +218,11 @@ function getHandCoords(pt, currentMode) {
 }
 
 // ==========================================
-// 🦴 骨架渲染器（極致微縮版 0.8 粗細）
+// 🦴 骨架渲染器（超精緻 0.8 纖細微型化）
 // ==========================================
 function drawHandSkeleton(lm, currentMode) {
-  stroke(0, 255, 255, 160);
-  strokeWeight(currentMode === "game2" ? 0.8 : 0.7);
+  stroke(0, 255, 255, 180);
+  strokeWeight(currentMode === "game2" ? 1.0 : 0.7);
   
   let fingers = [
     [0, 1, 2, 3, 4],     
@@ -222,7 +245,7 @@ function drawHandSkeleton(lm, currentMode) {
   fill(0, 255, 255, 220);
   for (let i = 0; i < lm.length; i++) {
     let pt = getHandCoords(lm[i], currentMode);
-    ellipse(pt.x, pt.y, currentMode === "game2" ? 2.2 : 2.0);
+    ellipse(pt.x, pt.y, currentMode === "game2" ? 3.5 : 2.0);
   }
 }
 
@@ -233,20 +256,20 @@ function drawPinchPointsUI(tX, tY, iX, iY, midX, midY, isPinching, currentMode) 
   push();
   noStroke();
   fill(255, 255, 255, 240);
-  let dotSize = currentMode === "game2" ? 3.5 : 2.5;
+  let dotSize = currentMode === "game2" ? 4.5 : 2.5;
   ellipse(tX, tY, dotSize); 
   ellipse(iX, iY, dotSize); 
 
   if (isPinching) {
-    fill(255, 215, 0, 190); 
+    fill(255, 215, 0, 200); 
     stroke(255, 215, 0);
-    strokeWeight(currentMode === "game2" ? 0.8 : 0.5);
-    ellipse(midX, midY, currentMode === "game2" ? (9 + sin(frameCount * 15) * 1) : 6);
+    strokeWeight(1.2);
+    ellipse(midX, midY, currentMode === "game2" ? (12 + sin(frameCount * 15) * 2) : 6);
   } else {
-    fill(0, 255, 255, 40);  
-    stroke(0, 255, 255, 150);
-    strokeWeight(0.7);
-    ellipse(midX, midY, currentMode === "game2" ? 5 : 4);
+    fill(0, 255, 255, 60);  
+    stroke(0, 255, 255, 180);
+    strokeWeight(0.8);
+    ellipse(midX, midY, currentMode === "game2" ? 7 : 4);
   }
   pop();
 }
