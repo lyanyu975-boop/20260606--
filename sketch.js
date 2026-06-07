@@ -141,7 +141,8 @@ function draw(){
   } else if (state === "start") {
     drawStartScreen();
   } else if (state === "game2") {
-    runGame2Logic(midX, mY, hasHand, isPinching);
+    // 🛠️ 修正處：正確傳入修復後的變數 midY（先前誤植為 mY）
+    runGame2Logic(midX, midY, hasHand, isPinching);
   } else {
     handleHandGesture(); 
     cardFloatAngle += 2.5;
@@ -194,11 +195,10 @@ function getHandCoords(pt, currentMode) {
 }
 
 // ==========================================
-// 🦴 骨架渲染器（全面縮小 50% 以上，更加精緻不遮擋）
+// 🦴 骨架渲染器（極致微縮版 0.8 粗細）
 // ==========================================
 function drawHandSkeleton(lm, currentMode) {
   stroke(0, 255, 255, 160);
-  // ✨ 連連看線條粗細從 1.8 縮減至 0.8
   strokeWeight(currentMode === "game2" ? 0.8 : 0.7);
   
   let fingers = [
@@ -218,7 +218,6 @@ function drawHandSkeleton(lm, currentMode) {
     }
   }
 
-  // ✨ 連連看關節點直徑從 5 縮減至 2.2
   noStroke();
   fill(0, 255, 255, 220);
   for (let i = 0; i < lm.length; i++) {
@@ -228,13 +227,12 @@ function drawHandSkeleton(lm, currentMode) {
 }
 
 // ==========================================
-// 🤏 捏合提示 UI（全面縮小 50% 以上）
+// 🤏 捏合提示 UI
 // ==========================================
 function drawPinchPointsUI(tX, tY, iX, iY, midX, midY, isPinching, currentMode) {
   push();
   noStroke();
   fill(255, 255, 255, 240);
-  // ✨ 指尖提示點從 8 縮減至 3.5
   let dotSize = currentMode === "game2" ? 3.5 : 2.5;
   ellipse(tX, tY, dotSize); 
   ellipse(iX, iY, dotSize); 
@@ -243,13 +241,11 @@ function drawPinchPointsUI(tX, tY, iX, iY, midX, midY, isPinching, currentMode) 
     fill(255, 215, 0, 190); 
     stroke(255, 215, 0);
     strokeWeight(currentMode === "game2" ? 0.8 : 0.5);
-    // ✨ 觸發捏合時的波紋圓圈從 20 縮減至 9
     ellipse(midX, midY, currentMode === "game2" ? (9 + sin(frameCount * 15) * 1) : 6);
   } else {
     fill(0, 255, 255, 40);  
     stroke(0, 255, 255, 150);
     strokeWeight(0.7);
-    // ✨ 移動時的中心十字提示圈從 12 縮減至 5
     ellipse(midX, midY, currentMode === "game2" ? 5 : 4);
   }
   pop();
