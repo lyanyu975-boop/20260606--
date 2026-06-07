@@ -8,14 +8,14 @@ let hold = 0;
 let spreadProgress = 0; 
 let cardFloatAngle = 0;
 
-// 🎮 遊戲二：雙指捏捏連連看變數
+// 🎮 遊戲二：雙指捏捏連連看變數 (30秒限制、去說明書)
 let game2Timer = 0;
-let game2MaxTime = 1800; // 30秒
+let game2MaxTime = 1800; // 30秒 (60fps * 30)
 let game2Score = 0;
 let pinchTargets = [];
 let grabbedItem = null; 
 
-// ✨ 原版星空與粒子特效
+// ✨ 華麗環境特效與星空
 let starsFar = [];
 let starsNear = [];
 let burstParticles = [];
@@ -23,12 +23,12 @@ let magicAngle1 = 0;
 let magicAngle2 = 0;
 let hueOffset = 0;
 
-// 🎵 音效
+// 🎵 音效系統
 let synth;
 let soundEnabled = false; 
 let isAutoSpin = false; 
 
-// 🔮 22張大阿爾克那 (原版卡牌完整保留，完全不更改)
+// 🔮 22張大阿爾克那完整保留
 const cards = [
   { name: "愚者", desc: ["新的開始、冒險與未知旅程。", "勇敢踏出第一步，", "", "不要過度擔心結果，", "", "新的機會正在等待你。"] },
   { name: "魔術師", desc: ["創造力與萬事俱備的起點。", "你已擁有足夠的資源，", "", "發揮你的行動力與技巧，", "", "現在是展現才華的時刻。"] },
@@ -36,11 +36,11 @@ const cards = [
   { name: "皇后", desc: ["豐盛、孕育與溫暖的愛。", "物質與情感正迎來豐收，", "", "大膽享受大自然的恩賜，", "", "生活將充滿喜悅與感性。"] },
   { name: "皇帝", desc: ["秩序、掌控力與穩定權力。", "展現你的領導與理智，", "", "建立清晰的規則與紀律，", "", "你有實力穩定眼前的局面。"] },
   { name: "教皇", desc: ["精神指引、傳統與貴人相助。", "近期適合尋求長輩或", "", "專業人士的建議，", "", "遵循正道將獲得體制的支持。"] },
-  { name: "戀人", desc: ["感情與重要選擇的象徵。", "近期可能面臨關於感情、", "", "人際或未來方向的抉擇，", "", "請傾聽自己的內心。"] },
+  { name: "戀人", desc: ["感情與重要選擇的象像。", "近期可能面臨關於感情、", "", "人際或未來方向的抉擇，", "", "請傾聽自己的內心。"] },
   { name: "戰車", desc: ["堅強意志力與克服障礙的勝利。", "掌控內心的衝突與浮躁，", "", "鎖定目標，全力全速奔馳，", "", "你將成功突破重圍。"] },
   { name: "力量", desc: ["內在勇氣與溫柔的掌控。", "真正強大的是內心的堅韌，", "", "用包容與耐性融化剛強，", "", "你將優雅地戰勝恐懼。"] },
   { name: "隱者", desc: ["內省、獨處與尋求真理。", "這是一段與自己對話的時期，", "", "退回內心深處深思熟慮，", "", "你就是引領自己的那盞明燈。"] },
-  { name: "命運之輪", desc: ["命運的轉折點與嶄新機會。", "不可抗拒的改變正在發生，", "", "順應時勢的潮起潮落，", "", "好運與轉機即將降臨。"] },
+  { name: "命運之輪", desc: ["命運的轉折點與嶄新機會。", "不可抗拒的改變正在发生，", "", "順應時勢的潮起潮落，", "", "好運與轉機即將降臨。"] },
   { name: "正義", desc: ["公平、誠實與理性的因果決策。", "請用客觀平衡的角度審視，", "", "做出誠實、不偏頗的決定，", "", "付出什麼將收穫什麼。"] },
   { name: "倒吊人", desc: ["換位思考、等待與短暫犧牲。", "換個全新的角度看待世界，", "", "眼前的停滯是必要的修行，", "", "靜候智慧的果實成熟。"] },
   { name: "死神", desc: ["結束、淘汰與新生的陣痛。", "舊有的模式必須徹底結束，", "", "不要畏懼捨棄，", "", "唯有放手才能迎來全新的蛻變。"] },
@@ -58,12 +58,12 @@ function setup(){
   createCanvas(windowWidth, windowHeight);
   angleMode(DEGREES);
 
-  // 📷 初始化鏡頭
+  // 📷 初始化視訊
   video = createCapture(VIDEO);
   video.size(220, 160);
   video.hide(); 
 
-  // 🤖 載入 AI 手勢識別
+  // 🤖 載入 ml5 Handpose AI
   handpose = ml5.handpose(video, () => {
     console.log("Handpose AI Ready");
   });
@@ -75,7 +75,7 @@ function setup(){
     predictions = results;
   });
 
-  // ✨ 生成精緻背景星空
+  // ✨ 背景星空生成
   for(let i = 0; i < 60; i++){
     starsFar.push({ x: random(width), y: random(height), size: random(1, 2), speed: random(0.1, 0.4) });
   }
@@ -90,22 +90,24 @@ function setup(){
 }
 
 function draw(){
-  // 1. 🎬 視訊底層渲染邏輯
+  // 1. 🎬 底層視訊鏡像渲染
   if (state === "game2") {
-    // 【連連看模式】：視訊全螢幕化，作為背景鏡像渲染
     push();
     translate(width, 0);
     scale(-1, 1);
-    image(video, 0, 0, width, height); 
+    image(video, 0, 0, width, height); // 全螢幕鋪底
     pop();
-    background(10, 10, 32, 180); // 覆蓋一層神祕濾鏡，讓卡牌與物件清晰
+    background(8, 8, 24, 160); // 覆蓋一層魔幻濾鏡
   } else {
-    // 【塔羅與大廳模式】：維持原版深邃夜空
-    background(8, 8, 20, 45); 
+    background(8, 8, 20, 45); // 塔羅與大廳深邃夜空
   }
 
-  // 2. ✋ 手勢全畫布映射解析
-  let handX = 0;
+  // 渲染星空與萬態通用魔法陣
+  drawStarfield(predictions.length > 0 ? (220 - predictions[0].landmarks[8][0] - 110) : 0);
+  drawLuxuryMagicCircle();
+  updateBurstParticles();
+
+  // 2. 🤖 手勢解析與多視窗對位對照 (基於 ml5.js 骨架核心結構)
   let tX = 0, tY = 0; 
   let iX = 0, iY = 0; 
   let midX = 0, midY = 0; 
@@ -116,37 +118,26 @@ function draw(){
     hasHand = true;
     let lm = predictions[0].landmarks;
     
-    let rawX = 220 - lm[8][0]; 
-    handX = rawX - 110; 
-    
-    // 全畫布精準對位
-    tX = map(220 - lm[4][0], 0, 220, 0, width);
-    tY = map(lm[4][1], 0, 160, 0, height);
-    iX = map(220 - lm[8][0], 0, 220, 0, width);
-    iY = map(lm[8][1], 0, 160, 0, height);
-    
-    midX = (tX + iX) / 2;
-    midY = (tY + iY) / 2;
-
-    if (dist(tX, tY, iX, iY) < 40) {
+    // 🔀 依物理幀原始碼距判定捏起 (最穩定)
+    let rawDist = dist(lm[4][0], lm[4][1], lm[8][0], lm[8][1]);
+    if (rawDist < 28) {
       isPinching = true;
     }
 
-    // 連連看中渲染手勢骨架與變色識別
-    if (state === "game2") {
-      drawHandSkeleton(lm);
-      drawPinchPointsUI(tX, tY, iX, iY, midX, midY, isPinching);
-    }
+    // 映射計算食指、大拇指與中心座標
+    let pThumb = getHandCoords(lm[4], state);
+    let pIndex = getHandCoords(lm[8], state);
+    tX = pThumb.x; tY = pThumb.y;
+    iX = pIndex.x; iY = pIndex.y;
+    midX = (tX + iX) / 2;
+    midY = (tY + iY) / 2;
+
+    // 🦴 在當前畫面上渲染完整的 21 點手勢關節骨架
+    drawHandSkeleton(lm, state);
+    drawPinchPointsUI(tX, tY, iX, iY, midX, midY, isPinching, state);
   }
 
-  // 非連連看模式，顯示原版星空魔法陣
-  if (state !== "game2") {
-    drawStarfield(handX);
-    drawLuxuryMagicCircle();
-  }
-  updateBurstParticles();
-
-  // 3. 🎛️ 狀態機切換
+  // 3. 🎛️ 場景狀態切換
   if (state === "lobby") {
     drawLobby();
   } else if (state === "start") {
@@ -154,7 +145,6 @@ function draw(){
   } else if (state === "game2") {
     runGame2Logic(midX, midY, hasHand, isPinching);
   } else {
-    // 🔮 卡牌原版核心邏輯
     handleHandGesture(); 
     cardFloatAngle += 2.5;
 
@@ -171,30 +161,137 @@ function draw(){
     }
   }
 
-  // 4. 📷 右上角小視訊框：只有在非連連看模式下才渲染，且完美對齊、永不移位！
+  // 4. 📷 卡牌模式小視訊視窗 (移除紫色框，保留精緻視訊與骨架疊加)
   if (state !== "game2") {
     let camX = width - 240;
     let camY = 20;
-    
     push();
     translate(camX + 220, camY); 
     scale(-1, 1);
     image(video, 0, 0, 220, 160); 
     pop();
-    
-    // 科技紫色外框
-    noFill();
-    stroke(138, 43, 226, 180);
-    strokeWeight(2);
-    rect(camX, camY, 220, 160, 6);
+  }
+}
 
-    // 一般指引點
-    if (hasHand) {
-      fill(0, 255, 255, 180);
-      noStroke();
-      ellipse(iX, iY, 15);
+// ==========================================
+// 🔀 核心：跨視窗手勢座標對位映射器 (仿ml5網頁對準規格)
+// ==========================================
+function getHandCoords(pt, currentMode) {
+  let rx = 220 - pt[0]; // 水平物理鏡像
+  let ry = pt[1];
+  if (currentMode === "game2") {
+    // 全螢幕視訊對位
+    return {
+      x: map(rx, 0, 220, 0, width),
+      y: map(ry, 0, 160, 0, height)
+    };
+  } else {
+    // 塔羅模式右上角小視窗對位
+    let camX = width - 240;
+    let camY = 20;
+    return {
+      x: camX + map(rx, 0, 220, 0, 220),
+      y: camY + map(ry, 0, 160, 0, 160)
+    };
+  }
+}
+
+// ==========================================
+// 🦴 手勢完整 21 點骨架與關節渲染器
+// ==========================================
+function drawHandSkeleton(lm, currentMode) {
+  stroke(0, 255, 255, 160);
+  strokeWeight(currentMode === "game2" ? 3.5 : 1.5);
+  
+  // ml5.js 標準手骨關節鏈路結構
+  let fingers = [
+    [0, 1, 2, 3, 4],     // 大拇指
+    [0, 5, 6, 7, 8],     // 食指
+    [0, 9, 10, 11, 12],  // 中指
+    [0, 13, 14, 15, 16], // 無名指
+    [0, 17, 18, 19, 20], // 小拇指
+    [5, 9, 13, 17]       // 手掌基部橫連線
+  ];
+
+  for (let f of fingers) {
+    for (let i = 0; i < f.length - 1; i++) {
+      let pt1 = getHandCoords(lm[f[i]], currentMode);
+      let pt2 = getHandCoords(lm[f[i+1]], currentMode);
+      line(pt1.x, pt1.y, pt2.x, pt2.y);
     }
   }
+
+  // 繪製關節點
+  noStroke();
+  fill(0, 255, 255, 220);
+  for (let i = 0; i < lm.length; i++) {
+    let pt = getHandCoords(lm[i], currentMode);
+    ellipse(pt.x, pt.y, currentMode === "game2" ? 9 : 4);
+  }
+}
+
+function drawPinchPointsUI(tX, tY, iX, iY, midX, midY, isPinching, currentMode) {
+  push();
+  noStroke();
+  fill(255, 255, 255, 230);
+  let dotSize = currentMode === "game2" ? 14 : 6;
+  ellipse(tX, tY, dotSize); 
+  ellipse(iX, iY, dotSize); 
+
+  if (isPinching) {
+    fill(255, 215, 0, 180); // 辨識成功：耀眼金色
+    stroke(255, 215, 0);
+    strokeWeight(currentMode === "game2" ? 3 : 1);
+    ellipse(midX, midY, currentMode === "game2" ? (38 + sin(frameCount * 15) * 4) : 14);
+  } else {
+    fill(0, 255, 255, 60);  // 靜態追蹤：科技青色
+    stroke(0, 255, 255, 180);
+    strokeWeight(1);
+    ellipse(midX, midY, currentMode === "game2" ? 24 : 10);
+  }
+  pop();
+}
+
+// ==========================================
+// 🎨 精美卡牌背面圖案紋理繪製
+// ==========================================
+function drawCardBack(w, h) {
+  push();
+  // 基礎深藍絲絨牌面
+  fill(16, 24, 48); 
+  stroke(230, 185, 60); 
+  strokeWeight(2.5);
+  rect(0, 0, w, h, 10);
+  
+  // 金絲雙線內襯框
+  noFill();
+  stroke(230, 185, 60, 140);
+  strokeWeight(1);
+  rect(0, 0, w - 12, h - 12, 8);
+  
+  // 四角幾何星芒射線
+  stroke(230, 185, 60, 70);
+  line(-w/2 + 10, -h/2 + 10, -w/6, -h/6);
+  line(w/2 - 10, -h/2 + 10, w/6, -h/6);
+  line(-w/2 + 10, h/2 - 10, -w/6, h/6);
+  line(w/2 - 10, h/2 - 10, w/6, h/6);
+  
+  // 中央神祕宇宙同心雙圓
+  stroke(230, 185, 60, 160);
+  ellipse(0, 0, w * 0.52);
+  ellipse(0, 0, w * 0.32);
+  
+  // 核心微型發光太陽符號
+  fill(230, 185, 60, 210);
+  noStroke();
+  ellipse(0, 0, w * 0.14);
+  
+  // 周圍對稱古典星體小圓點
+  ellipse(0, -h * 0.24, 4);
+  ellipse(0, h * 0.24, 4);
+  ellipse(-w * 0.24, 0, 4);
+  ellipse(w * 0.24, 0, 4);
+  pop();
 }
 
 // ==========================================
@@ -238,63 +335,7 @@ function drawLobbyButton(x, y, label, btnColor) {
 }
 
 // ==========================================
-// 🦴 手勢辨識與骨架 UI
-// ==========================================
-function drawHandSkeleton(lm) {
-  stroke(0, 255, 255, 120);
-  strokeWeight(3);
-  
-  let fingers = [
-    [0, 1, 2, 3, 4],
-    [0, 5, 6, 7, 8],
-    [0, 9, 10, 11, 12],
-    [0, 13, 14, 15, 16],
-    [0, 17, 18, 19, 20],
-    [5, 9, 13, 17]
-  ];
-
-  for (let f of fingers) {
-    for (let i = 0; i < f.length - 1; i++) {
-      let x1 = map(220 - lm[f[i]][0], 0, 220, 0, width);
-      let y1 = map(lm[f[i]][1], 0, 160, 0, height);
-      let x2 = map(220 - lm[f[i+1]][0], 0, 220, 0, width);
-      let y2 = map(lm[f[i+1]][1], 0, 160, 0, height);
-      line(x1, y1, x2, y2);
-    }
-  }
-
-  noStroke();
-  fill(0, 255, 255, 200);
-  for (let i = 0; i < lm.length; i++) {
-    let x = map(220 - lm[i][0], 0, 220, 0, width);
-    let y = map(lm[i][1], 0, 160, 0, height);
-    ellipse(x, y, 8);
-  }
-}
-
-function drawPinchPointsUI(tX, tY, iX, iY, midX, midY, isPinching) {
-  push();
-  noStroke();
-  fill(255, 255, 255, 230);
-  ellipse(tX, tY, 14); 
-  ellipse(iX, iY, 14); 
-
-  if (isPinching) {
-    fill(255, 215, 0, 170); // 金色
-    stroke(255, 215, 0);
-    strokeWeight(3);
-    ellipse(midX, midY, 36 + sin(frameCount * 15) * 5);
-  } else {
-    fill(0, 255, 255, 60);  // 青色
-    stroke(0, 255, 255, 180);
-    strokeWeight(1.5);
-    ellipse(midX, midY, 24);
-  }
-  pop();
-}
-
-// ==========================================
-// 🤏 連連看遊戲核心 (直接進入、30秒倒數)
+// 🤏 雙指捏捏連連看核心邏輯
 // ==========================================
 function initGame2Data() {
   game2Score = 0;
@@ -380,6 +421,7 @@ function runGame2Logic(mX, mY, hasHand, isPinching) {
     initGame2Data();
   }
 
+  // 頂部精美黑底 UI 面板
   textAlign(LEFT, TOP); fill(0, 255, 255); textSize(26);
   text("✨ 魔法值: " + game2Score, 40, 40);
 
@@ -418,7 +460,7 @@ function triggerGame2Burst(x, y) {
 }
 
 // ==========================================
-// 🌌 特效環境
+// 🌌 萬態魔法陣背景與特效
 // ==========================================
 function drawStarfield(handX) {
   for(let star of starsFar) {
@@ -434,10 +476,16 @@ function drawStarfield(handX) {
 }
 
 function drawLuxuryMagicCircle() {
-  push(); translate(width / 2, height / 2 + 320); 
+  push(); 
+  // 🎯 若在連連看模式則置中放大，完全符合圖面震撼效果
+  if (state === "game2") {
+    translate(width / 2, height / 2);
+  } else {
+    translate(width / 2, height / 2 + 320);
+  }
   magicAngle1 += 0.2; magicAngle2 -= 0.15;
-  push(); rotate(magicAngle1); noFill(); stroke(100, 160, 255, 25); ellipse(0, 0, 720); pop();
-  push(); rotate(magicAngle2); noFill(); stroke(138, 43, 226, 20); ellipse(0, 0, 580); pop();
+  push(); rotate(magicAngle1); noFill(); stroke(100, 160, 255, 35); strokeWeight(2); ellipse(0, 0, 720); ellipse(0, 0, 680); pop();
+  push(); rotate(magicAngle2); noFill(); stroke(138, 43, 226, 25); strokeWeight(1.5); ellipse(0, 0, 580); pop();
   pop();
 }
 
@@ -453,7 +501,6 @@ function triggerBurst() {
   }
 }
 
-// 修正：完全復原原本卡牌專屬的爆破粒子更新函數
 function updateBurstParticles() {
   for (let i = burstParticles.length - 1; i >= 0; i--) {
     let p = burstParticles[i];
@@ -465,7 +512,7 @@ function updateBurstParticles() {
 }
 
 // ==========================================
-// ✋ 卡牌原版手勢邏輯 (完全保留不更改)
+// ✋ 卡牌手勢判斷
 // ==========================================
 function handleHandGesture() {
   if (state === "select") return;
@@ -499,7 +546,6 @@ function handleHandGesture() {
   }
 }
 
-// 修正：完全復原最原始精緻的卡牌扇形繪製函數
 function drawTarotFan() {
   push(); translate(width / 2, height / 2 + 320); 
   let totalCards = cards.length;
@@ -513,24 +559,32 @@ function drawTarotFan() {
     let currentAngle = startAngle + i * angleStep; rotate(currentAngle);
     let radius = -440; 
     
+    // 🃏 當卡牌背面朝上或旋轉等待時：調用極致精美牌背
     if (state === "spinWait") {
       radius = -250 + sin(cardFloatAngle * 0.8) * 6;
-      rectMode(CENTER); fill(25, 25, 55); stroke(255, 215, 0); strokeWeight(2.5);
-      rect(0, radius, 130, 210, 10); pop(); continue; 
+      translate(0, radius);
+      drawCardBack(130, 210); 
+      pop(); 
+      continue; 
     }
+    
     if (i === index && state === "play") {
-      radius -= (50 + hoverY); rectMode(CENTER); fill(0, 191, 255, sin(frameCount * 8) * 15 + 20); noStroke(); rect(0, radius, 95, 155, 10);
+      radius -= (50 + hoverY); 
+      rectMode(CENTER); 
+      fill(0, 191, 255, sin(frameCount * 8) * 15 + 20); 
+      noStroke(); 
+      rect(0, radius, 95, 155, 10);
     }
-    rectMode(CENTER); fill(18, 18, 40);
-    if (i === index && state === "play") { stroke(255, 215, 0); strokeWeight(2.5); } 
-    else { stroke(255, 255, 255, 60); strokeWeight(1); }
-    rect(0, radius, 80, 140, 8); pop();
+    
+    translate(0, radius);
+    drawCardBack(80, 140); // 正常發牌陣列也套用精美牌背
+    pop();
   }
   pop();
 }
 
 // ==========================================
-// 🖥️ UI 介面
+// 🖥️ 塔羅精緻 UI 渲染
 // ==========================================
 function drawStartScreen() {
   rectMode(CENTER); fill(12, 12, 28, 240); stroke(138, 43, 226); strokeWeight(3);
@@ -558,7 +612,6 @@ function drawPlayUI() {
   }
 }
 
-// 修正：完全復原卡牌展示面板與精緻文字換行效果
 function drawSelectScreen() {
   push(); translate(0, sin(cardFloatAngle * 0.5) * 10); rectMode(CENTER);
   hueOffset += 0.8; let rGlow = sin(hueOffset) * 40 + 215; let gGlow = sin(hueOffset + 120) * 30 + 185;
@@ -588,7 +641,6 @@ function mousePressed() {
     if (mouseX > width/2 - 250 && mouseX < width/2 - 30 && mouseY > height/2 - 10 && mouseY < height/2 + 70) {
       playTarotSound(523, 0.1); state = "start";
     }
-    // 進入連連看：直接開局、啟用倒數、設定全螢幕視訊規格
     if (mouseX > width/2 + 30 && mouseX < width/2 + 250 && mouseY > height/2 - 10 && mouseY < height/2 + 70) {
       playTarotSound(587, 0.1); 
       initGame2Data();
