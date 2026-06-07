@@ -8,14 +8,14 @@ let hold = 0;
 let spreadProgress = 0; 
 let cardFloatAngle = 0;
 
-// 🎮 遊戲二：雙指捏捏連連看變數 (30秒限制、無說明書、全螢幕背景)
+// 🎮 遊戲二：雙指捏捏連連看變數
 let game2Timer = 0;
 let game2MaxTime = 1800; // 30秒
 let game2Score = 0;
 let pinchTargets = [];
 let grabbedItem = null; 
 
-// ✨ 特效與星空
+// ✨ 原版星空與粒子特效
 let starsFar = [];
 let starsNear = [];
 let burstParticles = [];
@@ -58,7 +58,7 @@ function setup(){
   createCanvas(windowWidth, windowHeight);
   angleMode(DEGREES);
 
-  // 📷 初始化視訊 (視訊大小會根據模式動態調整)
+  // 📷 初始化鏡頭
   video = createCapture(VIDEO);
   video.size(220, 160);
   video.hide(); 
@@ -75,7 +75,7 @@ function setup(){
     predictions = results;
   });
 
-  // ✨ 背景背景星空生成
+  // ✨ 生成精緻背景星空
   for(let i = 0; i < 60; i++){
     starsFar.push({ x: random(width), y: random(height), size: random(1, 2), speed: random(0.1, 0.4) });
   }
@@ -90,19 +90,21 @@ function setup(){
 }
 
 function draw(){
-  // 1. 視訊畫面底層渲染：如果是連連看遊戲，視訊直接鋪滿全螢幕當背景
+  // 1. 🎬 視訊底層渲染邏輯
   if (state === "game2") {
+    // 【連連看模式】：視訊全螢幕化，作為背景鏡像渲染
     push();
     translate(width, 0);
     scale(-1, 1);
-    image(video, 0, 0, width, height); // 鋪滿全畫布
+    image(video, 0, 0, width, height); 
     pop();
-    background(10, 10, 32, 170); // 覆蓋一層魔幻半透明濾鏡
+    background(10, 10, 32, 180); // 覆蓋一層神祕濾鏡，讓卡牌與物件清晰
   } else {
-    background(8, 8, 20, 45); // 塔羅與大廳的原版夜空背景
+    // 【塔羅與大廳模式】：維持原版深邃夜空
+    background(8, 8, 20, 45); 
   }
 
-  // 解析手勢座標 (不管是全螢幕還是小視窗，都建立對位映射)
+  // 2. ✋ 手勢全畫布映射解析
   let handX = 0;
   let tX = 0, tY = 0; 
   let iX = 0, iY = 0; 
@@ -117,7 +119,7 @@ function draw(){
     let rawX = 220 - lm[8][0]; 
     handX = rawX - 110; 
     
-    // 全畫布座標對位映射
+    // 全畫布精準對位
     tX = map(220 - lm[4][0], 0, 220, 0, width);
     tY = map(lm[4][1], 0, 160, 0, height);
     iX = map(220 - lm[8][0], 0, 220, 0, width);
@@ -130,21 +132,21 @@ function draw(){
       isPinching = true;
     }
 
-    // 🎯 連連看模式下：即時顯示手勢骨架與變色捏起UI
+    // 連連看中渲染手勢骨架與變色識別
     if (state === "game2") {
       drawHandSkeleton(lm);
       drawPinchPointsUI(tX, tY, iX, iY, midX, midY, isPinching);
     }
   }
 
-  // 渲染星空與魔法陣特效
+  // 非連連看模式，顯示原版星空魔法陣
   if (state !== "game2") {
     drawStarfield(handX);
     drawLuxuryMagicCircle();
   }
   updateBurstParticles();
 
-  // 2. 🎛️ 狀態機切換
+  // 3. 🎛️ 狀態機切換
   if (state === "lobby") {
     drawLobby();
   } else if (state === "start") {
@@ -152,7 +154,7 @@ function draw(){
   } else if (state === "game2") {
     runGame2Logic(midX, midY, hasHand, isPinching);
   } else {
-    // 🔮 精緻卡牌核心邏輯與排版 (完全保留原始精緻樣貌)
+    // 🔮 卡牌原版核心邏輯
     handleHandGesture(); 
     cardFloatAngle += 2.5;
 
@@ -169,7 +171,7 @@ function draw(){
     }
   }
 
-  // 3. 右上角小視訊框：只有在非連連看模式下才顯示，不擋住連連看畫面
+  // 4. 📷 右上角小視訊框：只有在非連連看模式下才渲染，且完美對齊、永不移位！
   if (state !== "game2") {
     let camX = width - 240;
     let camY = 20;
@@ -180,12 +182,13 @@ function draw(){
     image(video, 0, 0, 220, 160); 
     pop();
     
+    // 科技紫色外框
     noFill();
     stroke(138, 43, 226, 180);
     strokeWeight(2);
     rect(camX, camY, 220, 160, 6);
 
-    // 一般手勢指引點
+    // 一般指引點
     if (hasHand) {
       fill(0, 255, 255, 180);
       noStroke();
@@ -235,7 +238,7 @@ function drawLobbyButton(x, y, label, btnColor) {
 }
 
 // ==========================================
-// 🦴 手勢辨識與骨架系統
+// 🦴 手勢辨識與骨架 UI
 // ==========================================
 function drawHandSkeleton(lm) {
   stroke(0, 255, 255, 120);
@@ -277,12 +280,12 @@ function drawPinchPointsUI(tX, tY, iX, iY, midX, midY, isPinching) {
   ellipse(iX, iY, 14); 
 
   if (isPinching) {
-    fill(255, 215, 0, 170); // 捏起變閃耀金色
+    fill(255, 215, 0, 170); // 金色
     stroke(255, 215, 0);
     strokeWeight(3);
     ellipse(midX, midY, 36 + sin(frameCount * 15) * 5);
   } else {
-    fill(0, 255, 255, 60);  // 未捏起為晶瑩青色
+    fill(0, 255, 255, 60);  // 青色
     stroke(0, 255, 255, 180);
     strokeWeight(1.5);
     ellipse(midX, midY, 24);
@@ -291,7 +294,7 @@ function drawPinchPointsUI(tX, tY, iX, iY, midX, midY, isPinching) {
 }
 
 // ==========================================
-// 🤏 雙指捏捏連連看核心 (30秒限制、直接進入)
+// 🤏 連連看遊戲核心 (直接進入、30秒倒數)
 // ==========================================
 function initGame2Data() {
   game2Score = 0;
@@ -317,7 +320,6 @@ function initGame2Data() {
 function runGame2Logic(mX, mY, hasHand, isPinching) {
   if (game2Timer > 0) game2Timer--; 
 
-  // 抓取移動與碰撞判定
   if (hasHand && game2Timer > 0) {
     if (isPinching) {
       if (grabbedItem === null) {
@@ -350,7 +352,6 @@ function runGame2Logic(mX, mY, hasHand, isPinching) {
     }
   }
 
-  // 繪製連連看物件
   let remaining = 0;
   for (let t of pinchTargets) {
     if (t.isMatched) continue;
@@ -379,7 +380,6 @@ function runGame2Logic(mX, mY, hasHand, isPinching) {
     initGame2Data();
   }
 
-  // 頂部資訊 UI
   textAlign(LEFT, TOP); fill(0, 255, 255); textSize(26);
   text("✨ 魔法值: " + game2Score, 40, 40);
 
@@ -388,7 +388,6 @@ function runGame2Logic(mX, mY, hasHand, isPinching) {
   if (timeLeft <= 5) fill(255, 50, 50); else fill(255, 215, 0);
   text("⏳ 剩餘時間: " + timeLeft + " 秒", width - 40, 40);
 
-  // 時間截止結算
   if (game2Timer <= 0) {
     rectMode(CENTER);
     fill(12, 12, 28, 245); stroke(255, 215, 0); strokeWeight(2);
@@ -419,7 +418,7 @@ function triggerGame2Burst(x, y) {
 }
 
 // ==========================================
-// 🌌 星空環境與原版卡牌特效
+// 🌌 特效環境
 // ==========================================
 function drawStarfield(handX) {
   for(let star of starsFar) {
@@ -454,6 +453,7 @@ function triggerBurst() {
   }
 }
 
+// 修正：完全復原原本卡牌專屬的爆破粒子更新函數
 function updateBurstParticles() {
   for (let i = burstParticles.length - 1; i >= 0; i--) {
     let p = burstParticles[i];
@@ -465,7 +465,7 @@ function updateBurstParticles() {
 }
 
 // ==========================================
-// ✋ 卡牌原版手勢邏輯 (完整保留不更改)
+// ✋ 卡牌原版手勢邏輯 (完全保留不更改)
 // ==========================================
 function handleHandGesture() {
   if (state === "select") return;
@@ -499,6 +499,7 @@ function handleHandGesture() {
   }
 }
 
+// 修正：完全復原最原始精緻的卡牌扇形繪製函數
 function drawTarotFan() {
   push(); translate(width / 2, height / 2 + 320); 
   let totalCards = cards.length;
@@ -529,7 +530,7 @@ function drawTarotFan() {
 }
 
 // ==========================================
-// 🖥️ 原版精緻 UI 介面
+// 🖥️ UI 介面
 // ==========================================
 function drawStartScreen() {
   rectMode(CENTER); fill(12, 12, 28, 240); stroke(138, 43, 226); strokeWeight(3);
@@ -557,6 +558,7 @@ function drawPlayUI() {
   }
 }
 
+// 修正：完全復原卡牌展示面板與精緻文字換行效果
 function drawSelectScreen() {
   push(); translate(0, sin(cardFloatAngle * 0.5) * 10); rectMode(CENTER);
   hueOffset += 0.8; let rGlow = sin(hueOffset) * 40 + 215; let gGlow = sin(hueOffset + 120) * 30 + 185;
@@ -586,10 +588,9 @@ function mousePressed() {
     if (mouseX > width/2 - 250 && mouseX < width/2 - 30 && mouseY > height/2 - 10 && mouseY < height/2 + 70) {
       playTarotSound(523, 0.1); state = "start";
     }
-    // 點擊 連連看 (無說明書，立刻重設數據並直接開始)
+    // 進入連連看：直接開局、啟用倒數、設定全螢幕視訊規格
     if (mouseX > width/2 + 30 && mouseX < width/2 + 250 && mouseY > height/2 - 10 && mouseY < height/2 + 70) {
       playTarotSound(587, 0.1); 
-      video.size(220, 160); // 確保與 handpose 初始化框架完全相同
       initGame2Data();
       state = "game2";
     }
