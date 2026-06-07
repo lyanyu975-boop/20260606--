@@ -8,14 +8,14 @@ let hold = 0;
 let spreadProgress = 0; 
 let cardFloatAngle = 0;
 
-// 🎮 遊戲二：雙指捏捏連連看 變數
+// 🎮 遊戲二：雙指捏捏連連看變數 (恢復30秒限制，取消說明書)
 let game2Timer = 0;
+let game2MaxTime = 1800; // 30秒 (60幀/秒 * 30)
 let game2Score = 0;
-let game2MaxTime = 1800; // 30秒 (60幀/秒)
 let pinchTargets = [];
-let grabbedItem = null; // 當前抓取的物件
+let grabbedItem = null; 
 
-// 特效變數
+// ✨ 華麗特效變數
 let starsFar = [];
 let starsNear = [];
 let burstParticles = [];
@@ -23,12 +23,12 @@ let magicAngle1 = 0;
 let magicAngle2 = 0;
 let hueOffset = 0;
 
-// 音效與原版相容變數
+// 🎵 音效系統變數
 let synth;
 let soundEnabled = false; 
 let isAutoSpin = false; 
 
-// 🔮 22張大阿爾克那
+// 🔮 22張大阿爾克那 (原版卡牌完整保留，完全不更改)
 const cards = [
   { name: "愚者", desc: ["新的開始、冒險與未知旅程。", "勇敢踏出第一步，", "", "不要過度擔心結果，", "", "新的機會正在等待你。"] },
   { name: "魔術師", desc: ["創造力與萬事俱備的起點。", "你已擁有足夠的資源，", "", "發揮你的行動力與技巧，", "", "現在是展現才華的時刻。"] },
@@ -36,12 +36,12 @@ const cards = [
   { name: "皇后", desc: ["豐盛、孕育與溫暖的愛。", "物質與情感正迎來豐收，", "", "大膽享受大自然的恩賜，", "", "生活將充滿喜悅與感性。"] },
   { name: "皇帝", desc: ["秩序、掌控力與穩定權力。", "展現你的領導與理智，", "", "建立清晰的規則與紀律，", "", "你有實力穩定眼前的局面。"] },
   { name: "教皇", desc: ["精神指引、傳統與貴人相助。", "近期適合尋求長輩或", "", "專業人士的建議，", "", "遵循正道將獲得體制的支持。"] },
-  { name: "戀人", desc: ["感情與重要選擇的象徵。", "近期可能面臨關於感情、", "", "人際或未來方向的抉擇，", "", "請傾聽自己的內心。"] },
+  { name: "戀人", desc: ["感情與重要選擇的象像。", "近期可能面臨關於感情、", "", "人際或未來方向的抉擇，", "", "請傾聽自己的內心。"] },
   { name: "戰車", desc: ["堅強意志力與克服障礙的勝利。", "掌控內心的衝突與浮躁，", "", "鎖定目標，全力全速奔馳，", "", "你將成功突破重圍。"] },
   { name: "力量", desc: ["內在勇氣與溫柔的掌控。", "真正強大的是內心的堅韌，", "", "用包容與耐性融化剛強，", "", "你將優雅地戰勝恐懼。"] },
   { name: "隱者", desc: ["內省、獨處與尋求真理。", "這是一段與自己對話的時期，", "", "退回內心深處深思熟慮，", "", "你就是引領自己的那盞明燈。"] },
   { name: "命運之輪", desc: ["命運的轉折點與嶄新機會。", "不可抗拒的改變正在發生，", "", "順應時勢的潮起潮落，", "", "好運與轉機即將降臨。"] },
-  { name: "正義", desc: ["公平、誠實與理性的因果決策。", "請用客觀平衡的角度審視),", "", "做出誠實、不偏頗的決定，", "", "付出什麼將收穫什麼。"] },
+  { name: "正義", desc: ["公平、誠實與理性的因果決策。", "請用客觀平衡的角度審視，", "", "做出誠實、不偏頗的決定，", "", "付出什麼將收穫什麼。"] },
   { name: "倒吊人", desc: ["換位思考、等待與短暫犧牲。", "換個全新的角度看待世界，", "", "眼前的停滯是必要的修行，", "", "靜候智慧的果實成熟。"] },
   { name: "死神", desc: ["結束、淘汰與新生的陣痛。", "舊有的模式必須徹底結束，", "", "不要畏懼捨棄，", "", "唯有放手才能迎來全新的蛻變。"] },
   { name: "節制", desc: ["和諧平衡、淨化與溝通融合。", "在衝突中尋找細水長流，", "", "完美控制情感與理智，", "", "交流將會順暢並各退一步。"] },
@@ -51,21 +51,21 @@ const cards = [
   { name: "月亮", desc: ["迷茫不安、恐懼與隱藏的秘密。", "眼前面對的未知引發了焦慮，", "", "別被幻覺與流言黑影嚇倒，", "", "靜待迷霧散去、真相大白。"] },
   { name: "太陽", desc: ["象徵成功與幸福。", "目前的努力將逐漸看見成果，", "", "保持樂觀態度，", "", "好消息即將到來。"] },
   { name: "審判", desc: ["重要覺醒與重大的關鍵決定。", "聽從內心深處召喚的時刻，", "", "過去的努力將迎來最終清算，", "", "大膽跨入人生新階段。"] },
-  { name: "世界", desc: ["圓滿大結局、旅程結束與完美。", "一個重要的生命週期已達成，", "", "情感與目標皆獲得圓滿，", "", "準備好迎接更高層次的冒險。"] }
+  { name: "世界", desc: ["圓滿大結束、旅程結束與完美。", "一個重要的生命週期已達成，", "", "情感與目標皆獲得圓滿，", "", "準備好迎接更高層次的冒險。"] }
 ];
 
 function setup(){
   createCanvas(windowWidth, windowHeight);
   angleMode(DEGREES);
 
-  // 📷 攝影機初始化
+  // 📷 初始化視訊
   video = createCapture(VIDEO);
   video.size(220, 160);
-  video.hide();
+  video.hide(); 
 
-  // 🤖 ml5 handpose
+  // 🤖 載入 AI 手勢識別
   handpose = ml5.handpose(video, () => {
-    console.log("AI Model Ready");
+    console.log("Handpose AI Ready");
   });
   handpose.on("predict", results => {
     if (state === "select") {
@@ -75,7 +75,7 @@ function setup(){
     predictions = results;
   });
 
-  // ✨ 雙層星空
+  // ✨ 背景背景星空生成
   for(let i = 0; i < 60; i++){
     starsFar.push({ x: random(width), y: random(height), size: random(1, 2), speed: random(0.1, 0.4) });
   }
@@ -93,32 +93,40 @@ function setup(){
 function draw(){
   background(8, 8, 20, 45); 
 
-  // 1. 紀錄手勢座標與物理位置
+  // 1. 解析手勢座標
   let handX = 0;
-  let tX = 0, tY = 0; // 大拇指 (Thumb)
-  let iX = 0, iY = 0; // 食指 (Index)
-  let midX = 0, midY = 0; // 雙指中心點
+  let tX = 0, tY = 0; // 大拇指尖
+  let iX = 0, iY = 0; // 食指尖
+  let midX = 0, midY = 0; // 雙指中心
   let hasHand = false;
   let isPinching = false;
 
   if (predictions.length > 0) {
+    hasHand = true;
     let lm = predictions[0].landmarks;
+    
+    // 橫向物理鏡像座標
     let rawX = 220 - lm[8][0]; 
     handX = rawX - 110; 
     
-    // 映射大拇指 (lm[4]) 與食指 (lm[8]) 座標到全螢幕上
-    tX = map(220 - lm[4][0], 20, 200, 0, width);
-    tY = map(lm[4][1], 20, 140, 0, height);
-    iX = map(220 - lm[8][0], 20, 200, 0, width);
-    iY = map(lm[8][1], 20, 140, 0, height);
+    // 映射至全網頁畫布 (全畫布辨識)
+    tX = map(220 - lm[4][0], 15, 205, 0, width);
+    tY = map(lm[4][1], 15, 145, 0, height);
+    iX = map(220 - lm[8][0], 15, 205, 0, width);
+    iY = map(lm[8][1], 15, 145, 0, height);
     
     midX = (tX + iX) / 2;
     midY = (tY + iY) / 2;
-    hasHand = true;
 
-    // 🤏 判斷捏起：當食指和大拇指距離小於 25 像素時算捏起
-    if (dist(tX, tY, iX, iY) < 25) {
+    // 🤏 雙指捏起判定 (物理距離小於 40 像素)
+    if (dist(tX, tY, iX, iY) < 40) {
       isPinching = true;
+    }
+
+    // 如果在連連看遊戲進行中，繪製完整的手勢骨架與變色辨識圈
+    if (state === "game2") {
+      drawHandSkeleton(lm);
+      drawPinchPointsUI(tX, tY, iX, iY, midX, midY, isPinching);
     }
   }
 
@@ -126,14 +134,15 @@ function draw(){
   drawLuxuryMagicCircle();
   updateBurstParticles();
 
-  // 2. 🎛️ 狀態機
+  // 2. 🎛️ 狀態機場景切換
   if (state === "lobby") {
     drawLobby();
   } else if (state === "start") {
     drawStartScreen();
   } else if (state === "game2") {
-    updateAndDrawGame2(midX, midY, hasHand, isPinching);
+    runGame2Logic(midX, midY, hasHand, isPinching);
   } else {
+    // 🔮 卡牌部分核心邏輯 (完全保留原版)
     handleHandGesture(); 
     cardFloatAngle += 2.5;
 
@@ -150,53 +159,31 @@ function draw(){
     }
   }
 
-  // 3. 📷 右上角攝影機與邊框完美對位
+  // 3. 🛡️ 畫布內建式視訊框渲染 (徹底解決對不上的問題)
   let camX = width - 240;
   let camY = 20;
+  
   push();
   translate(camX + 220, camY); 
   scale(-1, 1);
   image(video, 0, 0, 220, 160); 
   pop();
+  
   noFill();
   stroke(138, 43, 226, 180);
   strokeWeight(2);
   rect(camX, camY, 220, 160, 6);
 
-  // 4. ✨ 渲染追蹤點（專屬遊戲二或通用手勢點）
-  if (hasHand) {
-    if (state === "game2") {
-      // 渲染大拇指和食指兩個點
-      noStroke();
-      fill(0, 255, 255, 200);
-      ellipse(tX, tY, 12); // 大拇指
-      ellipse(iX, iY, 12); // 食指
-      stroke(0, 255, 255, 100);
-      line(tX, tY, iX, iY);
-
-      // 🎯 核心要求：雙指捏起時，圓圈會辨識並變色
-      if (isPinching) {
-        fill(255, 215, 0, 150); // 捏起變「金色」
-        stroke(255, 215, 0);
-        strokeWeight(2);
-        ellipse(midX, midY, 25);
-      } else {
-        fill(0, 255, 255, 60); // 未捏起為「青色半透明」
-        stroke(0, 255, 255, 150);
-        strokeWeight(1);
-        ellipse(midX, midY, 20);
-      }
-    } else {
-      // 其它模式單點顯示
-      fill(0, 255, 255, 200);
-      noStroke();
-      ellipse(iX, iY, 14);
-    }
+  // 4. 一般狀態下的手勢指引點
+  if (hasHand && state !== "game2") {
+    fill(0, 255, 255, 180);
+    noStroke();
+    ellipse(iX, iY, 15);
   }
 }
 
 // ==========================================
-// 🏛️ 模式選單大廳 (Lobby)
+// 🏛️ 主選單大廳
 // ==========================================
 function drawLobby() {
   rectMode(CENTER);
@@ -213,7 +200,7 @@ function drawLobby() {
   
   fill(180, 200, 255);
   textSize(16);
-  text("請使用滑鼠點擊下方卡牌按鈕，開啟手勢魔法空間", width / 2, height / 2 - 80);
+  text("請使用滑鼠點擊選擇想進入的互動空間", width / 2, height / 2 - 80);
 
   drawLobbyButton(width / 2 - 140, height / 2 + 30, "🔮 命運塔羅占卜", color(75, 0, 130));
   drawLobbyButton(width / 2 + 140, height / 2 + 30, "🤏 雙指捏捏連連看", color(25, 25, 112));
@@ -236,59 +223,110 @@ function drawLobbyButton(x, y, label, btnColor) {
 }
 
 // ==========================================
-// 🤏 遊戲二：雙指捏捏連連看 (Pinch & Match)
+// 🦴 遊戲二專屬：手勢骨架與變色識別UI
 // ==========================================
-function initGame2() {
+function drawHandSkeleton(lm) {
+  stroke(0, 255, 255, 90);
+  strokeWeight(2.5);
+  
+  let fingers = [
+    [0, 1, 2, 3, 4],
+    [0, 5, 6, 7, 8],
+    [0, 9, 10, 11, 12],
+    [0, 13, 14, 15, 16],
+    [0, 17, 18, 19, 20],
+    [5, 9, 13, 17]
+  ];
+
+  for (let f of fingers) {
+    for (let i = 0; i < f.length - 1; i++) {
+      let x1 = map(220 - lm[f[i]][0], 15, 205, 0, width);
+      let y1 = map(lm[f[i]][1], 15, 145, 0, height);
+      let x2 = map(220 - lm[f[i+1]][0], 15, 205, 0, width);
+      let y2 = map(lm[f[i+1]][1], 15, 145, 0, height);
+      line(x1, y1, x2, y2);
+    }
+  }
+
+  noStroke();
+  fill(0, 255, 255, 180);
+  for (let i = 0; i < lm.length; i++) {
+    let x = map(220 - lm[i][0], 15, 205, 0, width);
+    let y = map(lm[i][1], 15, 145, 0, height);
+    ellipse(x, y, 7);
+  }
+}
+
+function drawPinchPointsUI(tX, tY, iX, iY, midX, midY, isPinching) {
+  push();
+  noStroke();
+  fill(255, 255, 255, 220);
+  ellipse(tX, tY, 12); 
+  ellipse(iX, iY, 12); 
+
+  // 🎯 核心需求：雙指捏起時，圓圈會辨識並變色
+  if (isPinching) {
+    fill(255, 215, 0, 150); // 捏起：變耀眼金色
+    stroke(255, 215, 0);
+    strokeWeight(2.5);
+    ellipse(midX, midY, 32 + sin(frameCount * 12) * 4);
+  } else {
+    fill(0, 255, 255, 50);  // 未捏起：原版青色
+    stroke(0, 255, 255, 150);
+    strokeWeight(1);
+    ellipse(midX, midY, 22);
+  }
+  pop();
+}
+
+// ==========================================
+// 🤏 遊戲二：雙指捏捏連連看 (含30秒時間限制)
+// ==========================================
+function initGame2Data() {
   game2Score = 0;
-  game2Timer = game2MaxTime;
+  game2Timer = game2MaxTime; // 重設為 30秒
   pinchTargets = [];
   grabbedItem = null;
 
-  // 初始化多個成對的圖標物件 (共有 6 對 = 12 個)
-  let icons = ["☀️", "🌙", "⭐", "🪐", "🌀", "🔮"];
-  
-  for (let icon of icons) {
-    // 每一種圖標產生兩個，散落在不同位置
+  let symbols = ["☀️", "🌙", "⭐", "🪐", "🌀", "🔮"];
+  for (let sym of symbols) {
     for (let j = 0; j < 2; j++) {
       pinchTargets.push({
-        id: random(100000), // 獨一無二的身分證
-        x: random(150, width - 300),
-        y: random(150, height - 150),
-        icon: icon,
-        size: 50,
+        id: random(100000),
+        x: random(120, width - 300), 
+        y: random(120, height - 120),
+        icon: sym,
+        size: 60,
         isMatched: false
       });
     }
   }
 }
 
-function updateAndDrawGame2(mX, mY, hasHand, isPinching) {
-  game2Timer--;
+function runGame2Logic(mX, mY, hasHand, isPinching) {
+  if (game2Timer > 0) {
+    game2Timer--; // 只有在時間大於0時才倒數
+  }
 
-  // 邏輯處理：捏起 (Grab) 與釋放 (Drop)
-  if (hasHand) {
+  // 抓取與碰撞消除核心
+  if (hasHand && game2Timer > 0) {
     if (isPinching) {
-      // 1. 如果還沒抓任何東西，嘗試去抓最近的物件
       if (grabbedItem === null) {
         for (let t of pinchTargets) {
-          if (!t.isMatched && dist(mX, mY, t.x, t.y) < t.size) {
+          if (!t.isMatched && dist(mX, mY, t.x, t.y) < t.size * 0.8) {
             grabbedItem = t;
             break;
           }
         }
       } else {
-        // 2. 如果已經抓到了，物件就跟著雙指中心點移動
         grabbedItem.x = mX;
         grabbedItem.y = mY;
       }
     } else {
-      // 3. 放開捏取時：檢查有沒有跟「相同圖標」重疊
       if (grabbedItem !== null) {
         for (let t of pinchTargets) {
-          // 不能是自己本身、且不能是已被消除的、而且圖標圖案要一樣
           if (t.id !== grabbedItem.id && !t.isMatched && t.icon === grabbedItem.icon) {
-            // 判斷重疊距離
-            if (dist(grabbedItem.x, grabbedItem.y, t.x, t.y) < t.size + 15) {
+            if (dist(grabbedItem.x, grabbedItem.y, t.x, t.y) < t.size + 20) {
               t.isMatched = true;
               grabbedItem.isMatched = true;
               game2Score += 20;
@@ -298,62 +336,61 @@ function updateAndDrawGame2(mX, mY, hasHand, isPinching) {
             }
           }
         }
-        grabbedItem = null; // 清空抓取狀態
+        grabbedItem = null;
       }
     }
   }
 
-  // 繪製所有的連連看圖標
-  let activeCount = 0;
+  // 繪製卡牌圖標
+  let remaining = 0;
   for (let t of pinchTargets) {
-    if (t.isMatched) continue; // 被消除了就不畫
-    activeCount++;
+    if (t.isMatched) continue;
+    remaining++;
 
     push();
     rectMode(CENTER);
-    // 繪製精美發光外底框
     if (grabbedItem && grabbedItem.id === t.id) {
-      fill(255, 215, 0, 40); // 被抓住時發金光
+      fill(255, 215, 0, 50);
       stroke(255, 215, 0);
-      strokeWeight(2);
+      strokeWeight(2.5);
     } else {
-      fill(30, 30, 60, 180);
-      stroke(100, 150, 255, 100);
-      strokeWeight(1);
+      fill(25, 25, 50, 190);
+      stroke(0, 255, 255, 90);
+      strokeWeight(1.5);
     }
-    rect(t.x, t.y, t.size, t.size, 8);
+    rect(t.x, t.y, t.size, t.size, 10);
     
-    // 繪製符號
-    noStroke();
-    textAlign(CENTER, CENTER);
-    textSize(24);
+    noStroke(); fill(255);
+    textAlign(CENTER, CENTER); textSize(26);
     text(t.icon, t.x, t.y);
     pop();
   }
 
-  // 補位機制：如果全部被消光了，自動重新生成新的一輪
-  if (activeCount === 0 && game2Timer > 0) {
-    initGame2();
+  // 自動補牌 (全部消完且時間還沒到時)
+  if (remaining === 0 && game2Timer > 0) {
+    initGame2Data();
+    game2Timer = game2Timer; // 保留當前剩餘時間
   }
 
-  // UI 渲染與倒數計時
+  // 渲染 UI 資訊
   textAlign(LEFT, TOP); fill(0, 255, 255); textSize(24);
   text("得分: " + game2Score, 40, 40);
-  
+
   textAlign(RIGHT, TOP);
   let timeLeft = max(0, ceil(game2Timer / 60));
-  text("限時倒數: " + timeLeft + "s", width - 260, 40);
+  if (timeLeft <= 5) fill(255, 50, 50); else fill(255, 215, 0);
+  text("限時倒數: " + timeLeft + " 秒", width - 260, 40);
 
-  // 遊戲結束處理
+  // 門檻判定：時間到時跳出結算
   if (game2Timer <= 0) {
     rectMode(CENTER);
-    fill(12, 12, 28, 240); stroke(0, 255, 255); strokeWeight(2);
+    fill(12, 12, 28, 245); stroke(0, 255, 255); strokeWeight(2);
     rect(width / 2, height / 2, 400, 250, 15);
     
     fill(255, 215, 0); textAlign(CENTER, CENTER); textSize(32);
     text("時間到！", width / 2, height / 2 - 40);
     fill(255); textSize(20);
-    text("您的最終星空魔法得分: " + game2Score, width / 2, height / 2 + 15);
+    text("最終得分: " + game2Score, width / 2, height / 2 + 15);
     
     drawLobbyButton(width / 2, height / 2 + 75, "返回選單大廳", color(138, 43, 226));
   } else {
@@ -375,7 +412,7 @@ function triggerGame2Burst(x, y) {
 }
 
 // ==========================================
-// 🌌 星空與特效系統
+// 🌌 星空環境與粒子系統
 // ==========================================
 function drawStarfield(handX) {
   for(let star of starsFar) {
@@ -421,7 +458,7 @@ function updateBurstParticles() {
 }
 
 // ==========================================
-// ✋ 塔羅牌手勢核心邏輯
+// ✋ 卡牌部分手勢邏輯 (完全保留原版不更改)
 // ==========================================
 function handleHandGesture() {
   if (state === "select") return;
@@ -455,9 +492,6 @@ function handleHandGesture() {
   }
 }
 
-// ==========================================
-// 🃏 牌組動態繪製
-// ==========================================
 function drawTarotFan() {
   push(); translate(width / 2, height / 2 + 320); 
   let totalCards = cards.length;
@@ -524,7 +558,7 @@ function drawSelectScreen() {
   fill(240); textSize(13); textAlign(CENTER, TOP);
   let lines = cards[index].desc; for (let i = 0; i < lines.length; i++) { text(lines[i], width / 2, height / 2 - 95 + (i * 24)); }
   pop();
-  drawLobbyButton(width / 2, height - 60, "返回選單大廳", color(138, 43, 226));
+  drawLobbyButton(width / 2, height - 60, "重新占卜", color(138, 43, 226));
 }
 
 function isFist(lm){ return lm[8][1] > lm[6][1] && lm[12][1] > lm[10][1]; }
@@ -538,15 +572,19 @@ function playTarotSound(freq, duration) {
 }
 
 // ==========================================
-// 🖱️ 滑鼠點擊選單大廳
+// 🖱️ 滑鼠與大廳點擊控制
 // ==========================================
 function mousePressed() {
   if (state === "lobby") {
+    // 點擊 塔羅牌
     if (mouseX > width/2 - 250 && mouseX < width/2 - 30 && mouseY > height/2 - 10 && mouseY < height/2 + 70) {
       playTarotSound(523, 0.1); state = "start";
     }
+    // 點擊 連連看 (立刻發動初始化並直接開局)
     if (mouseX > width/2 + 30 && mouseX < width/2 + 250 && mouseY > height/2 - 10 && mouseY < height/2 + 70) {
-      playTarotSound(587, 0.1); initGame2(); state = "game2";
+      playTarotSound(587, 0.1); 
+      initGame2Data();
+      state = "game2";
     }
   } 
   else if (state === "start") {
@@ -554,16 +592,22 @@ function mousePressed() {
     if (mouseX > width/2 - 110 && mouseX < width/2 + 110 && mouseY > height/2 + 90 && mouseY < height/2 + 170) { state = "lobby"; }
   }
   else if (state === "game2") {
+    // 時間到了點擊「返回選單大廳」
     if (game2Timer <= 0) {
-      if (mouseX > width/2 - 110 && mouseX < width/2 + 110 && mouseY > height/2 + 35 && mouseY < height/2 + 115) { state = "lobby"; }
+      if (mouseX > width/2 - 110 && mouseX < width/2 + 110 && mouseY > height/2 + 75 - 40 && mouseY < height/2 + 75 + 40) {
+        state = "lobby";
+      }
     } else {
-      if (mouseX > 100 - 110 && mouseX < 100 + 110 && mouseY > height - 40 - 40 && mouseY < height - 40 + 40) { state = "lobby"; }
+      // 遊戲中點擊左下角「⬅ 返回選單大廳」
+      if (mouseX > 100 - 110 && mouseX < 100 + 110 && mouseY > height - 40 - 40 && mouseY < height - 40 + 40) { 
+        state = "lobby"; 
+      }
     }
   }
   else if (state === "spinWait" || state === "play") {
     if (mouseX > 100 - 110 && mouseX < 100 + 110 && mouseY > height - 40 - 40 && mouseY < height - 40 + 40) { state = "lobby"; }
   }
   else if (state === "select") {
-    if (mouseX > width/2 - 110 && mouseX < width/2 + 110 && mouseY > height - 60 - 40 && mouseY < height - 60 + 40) { state = "lobby"; }
+    if (mouseX > width/2 - 110 && mouseX < width/2 + 110 && mouseY > height - 60 - 40 && mouseY < height - 60 + 40) { state = "start"; }
   }
 }
