@@ -2,25 +2,30 @@ let video;
 let handpose;
 let predictions = [];
 
+let state = "lobby"; // lobby, start, spinWait, play, select, game2
 let index = 0;
 let hold = 0;
-let state = "start"; // start, spinWait, play, select
-
-// 藝術動畫控制
 let spreadProgress = 0; 
-let cardFloatAngle = 0; // 卡牌漂浮角度
+let cardFloatAngle = 0;
+
+// 遊戲二：星空魔法消消樂 變數
+let game2Timer = 0;
+let game2Score = 0;
+let magicTargets = [];
+let game2MaxTime = 30 * 60; // 30秒 (60幀/秒)
 
 // 特效變數
 let starsFar = [];
 let starsNear = [];
-let burstParticles = []; // 鎖定時的爆炸粒子
+let burstParticles = [];
 let magicAngle1 = 0;
 let magicAngle2 = 0;
-let hueOffset = 0; // 流光色彩偏移
+let hueOffset = 0;
 
-// 音效
+// 音效與原版相容變數
 let synth;
 let soundEnabled = false; 
+let isAutoSpin = false; 
 
 // 🔮 22張大阿爾克那
 const cards = [
@@ -51,7 +56,6 @@ const cards = [
 function setup(){
   createCanvas(windowWidth, windowHeight);
   angleMode(DEGREES);
-  colorMode(RGB, 255, 255, 255, 255);
 
   // 📷 攝影機初始化
   video = createCapture(VIDEO);
@@ -70,7 +74,7 @@ function setup(){
     predictions = results;
   });
 
-  // ✨ 雙層星空初始化 (優化效能，數量控制在安全範圍)
+  // ✨ 雙層星空
   for(let i = 0; i < 60; i++){
     starsFar.push({ x: random(width), y: random(height), size: random(1, 2), speed: random(0.1, 0.4) });
   }
@@ -78,7 +82,7 @@ function setup(){
     starsNear.push({ x: random(width), y: random(height), size: random(2.5, 4), speed: random(0.5, 1) });
   }
 
-  // 🎵 初始化合成器音效
+  // 🎵 初始化音效
   if (typeof p5.Oscillator !== 'undefined') {
     synth = new p5.Oscillator('sine');
     soundEnabled = true;
@@ -86,36 +90,40 @@ function setup(){
 }
 
 function draw(){
-  // 讓背景有一點點上一幀的殘影，製造高貴的動態模糊感（非常有質感！）
-  background(8, 8, 20, 40); 
+  background(8, 8, 20, 45); 
 
-  // 取得手勢X做視差
+  // 1. 計算手勢物理座標與視差量
   let handX = 0;
+  let pointerX = 0;
+  let pointerY = 0;
+  let hasHand = false;
+
   if (predictions.length > 0) {
-    handX = (220 - predictions[0].landmarks[8][0]) - 110; // 映射出中央位移量
+    let lm = predictions[0].landmarks;
+    // 橫向物理鏡像座標
+    let rawX = 220 - lm[8][0]; 
+    handX = rawX - 110; 
+    
+    // 將 220x160 的小視窗映射到全螢幕上作為「魔法滑鼠」
+    pointerX = map(rawX, 20, 200, 0, width);
+    pointerY = map(lm[8][1], 20, 140, 0, height);
+    hasHand = true;
   }
 
   drawStarfield(handX);
   drawLuxuryMagicCircle();
-  updateBurstParticles(); // 更新並繪製炸裂粒子
+  updateBurstParticles();
 
-  // 🔄 鏡頭左右翻轉與科技感邊框
-  push();
-  translate(width - 20, 20); 
-  scale(-1, 1);              
-  image(video, 0, 0, 220, 160); 
-  pop();
-  noFill();
-  stroke(138, 43, 226, 120);
-  rect(width - 240, 20, 220, 160, 4);
-
-  // 3. 核心狀態處理
-  if (state === "start") {
+  // 2. 🎛️ 狀態機切換核心
+  if (state === "lobby") {
+    drawLobby();
+  } else if (state === "start") {
     drawStartScreen();
+  } else if (state === "game2") {
+    updateAndDrawGame2(pointerX, pointerY, hasHand);
   } else {
+    // 塔羅牌主架構
     handleHandGesture(); 
-
-    // 卡牌懸浮微幅正弦波計算
     cardFloatAngle += 2.5;
 
     if (state === "spinWait") {
@@ -130,13 +138,190 @@ function draw(){
       drawSelectScreen(); 
     }
   }
+
+  // 3. 📷 修正版視訊框與紫色外框定位 (使用固定右上基準點，完美咬合不跑位)
+  let camX = width - 240;
+  let camY = 20;
+  
+  push();
+  translate(camX + 220, camY); // 移動到外框右緣進行水平鏡像
+  scale(-1, 1);
+  image(video, 0, 0, 220, 160); 
+  pop();
+  
+  // 紫色邊框與其完美重合
+  noFill();
+  stroke(138, 43, 226, 180);
+  strokeWeight(2);
+  rect(camX, camY, 220, 160, 6);
+
+  // 4. 如果有偵測到手，繪製華麗的魔法跟隨點
+  if (hasHand) {
+    fill(0, 255, 255, 180);
+    noStroke();
+    ellipse(pointerX, pointerY, 15);
+    for(let i = 3; i > 0; i--) {
+      fill(0, 255, 255, 40);
+      ellipse(pointerX, pointerY, 15 + i*8 + sin(frameCount*10)*5);
+    }
+  }
 }
 
 // ==========================================
-// 🌌 特效系統（升級：視差星空、粒子波）
+// 🏛️ 模式選單大廳 (Lobby)
+// ==========================================
+function drawLobby() {
+  rectMode(CENTER);
+  fill(12, 12, 28, 220);
+  stroke(255, 215, 0, 120);
+  strokeWeight(2);
+  rect(width / 2, height / 2, 600, 400, 15);
+
+  noStroke();
+  textAlign(CENTER, CENTER);
+  fill(255, 215, 0);
+  textSize(36);
+  text("神祕學手勢互動大廳", width / 2, height / 2 - 130);
+  
+  fill(180, 200, 255);
+  textSize(16);
+  text("請使用滑鼠點擊選擇想進入的互動空間", width / 2, height / 2 - 80);
+
+  // 空間一：塔羅牌入口
+  drawLobbyButton(width / 2 - 140, height / 2 + 30, "🔮 命運塔羅占卜", color(75, 0, 130));
+  // 空間二：消消樂入口
+  drawLobbyButton(width / 2 + 140, height / 2 + 30, "✨ 星空魔法消消樂", color(25, 25, 112));
+}
+
+function drawLobbyButton(x, y, label, btnColor) {
+  push();
+  rectMode(CENTER);
+  if (mouseX > x - 110 && mouseX < x + 110 && mouseY > y - 40 && mouseY < y + 40) {
+    fill(btnColor.levels[0]+30, btnColor.levels[1]+30, btnColor.levels[2]+30);
+    cursor(HAND);
+  } else {
+    fill(btnColor);
+  }
+  stroke(255);
+  strokeWeight(1);
+  rect(x, y, 220, 80, 10);
+
+  noStroke();
+  fill(255);
+  textSize(18);
+  textAlign(CENTER, CENTER);
+  text(label, x, y);
+  pop();
+}
+
+// ==========================================
+// 🎮 遊戲二：星空魔法消消樂 (互動小遊戲)
+// ==========================================
+function initGame2() {
+  game2Score = 0;
+  game2Timer = game2MaxTime;
+  magicTargets = [];
+  spawnTarget();
+}
+
+function spawnTarget() {
+  let icons = ["⭐️", "🌙", "🧿", "💎"];
+  magicTargets.push({
+    x: random(100, width - 100),
+    y: random(100, height - 150),
+    icon: random(icons),
+    size: random(40, 60),
+    pulse: random(360)
+  });
+}
+
+function updateAndDrawGame2(pX, pY, hasHand) {
+  game2Timer--;
+  
+  // 定時生成新的神祕目標
+  if (frameCount % 45 === 0 && magicTargets.length < 6) {
+    spawnTarget();
+  }
+
+  // 繪製與碰撞偵測
+  for (let i = magicTargets.length - 1; i >= 0; i--) {
+    let t = magicTargets[i];
+    t.pulse += 4;
+    let sizeWave = t.size + sin(t.pulse) * 5;
+
+    // 渲染目標發光底層
+    fill(138, 43, 226, 30 + sin(t.pulse)*15);
+    noStroke();
+    ellipse(t.x, t.y, sizeWave + 20);
+
+    textAlign(CENTER, CENTER);
+    textSize(sizeWave * 0.7);
+    text(t.icon, t.x, t.y);
+
+    // ✋ 偵測手掌碰撞 (食指尖碰觸即消)
+    if (hasHand) {
+      let d = dist(pX, pY, t.x, t.y);
+      if (d < sizeWave/2 + 15) {
+        // 觸發爆炸粒子
+        triggerGame2Burst(t.x, t.y);
+        playTarotSound(500 + game2Score * 20, 0.05);
+        magicTargets.splice(i, 1);
+        game2Score += 10;
+        spawnTarget();
+      }
+    }
+  }
+
+  // UI 渲染
+  textAlign(LEFT, TOP);
+  fill(0, 255, 255);
+  textSize(24);
+  text("得分: " + game2Score, 40, 40);
+  
+  textAlign(RIGHT, TOP);
+  let timeLeft = max(0, ceil(game2Timer / 60));
+  text("剩餘時間: " + timeLeft + "s", width - 260, 40); // 避開相機
+
+  // 時間結束
+  if (game2Timer <= 0) {
+    rectMode(CENTER);
+    fill(12, 12, 28, 240);
+    stroke(0, 255, 255);
+    rect(width / 2, height / 2, 400, 250, 15);
+    
+    fill(255, 215, 0);
+    textAlign(CENTER, CENTER);
+    textSize(32);
+    text("儀式結束！", width / 2, height / 2 - 40);
+    fill(255);
+    textSize(22);
+    text("最終魔法值: " + game2Score, width / 2, height / 2 + 10);
+    
+    // 返回大廳按鈕
+    drawLobbyButton(width / 2, height / 2 + 70, "返回大廳", color(138, 43, 226));
+  } else {
+    // 遊戲中隨時顯示返回按鈕
+    drawLobbyButton(80, height - 40, "⬅ 返回大廳", color(40, 40, 50));
+  }
+}
+
+function triggerGame2Burst(x, y) {
+  for(let i = 0; i < 15; i++) {
+    let angle = random(360);
+    let speed = random(2, 6);
+    burstParticles.push({
+      x: x, y: y,
+      vx: cos(angle) * speed, vy: sin(angle) * speed,
+      size: random(3, 6), alpha: 255,
+      color: color(0, 255, 255)
+    });
+  }
+}
+
+// ==========================================
+// 🌌 星空與特效系統
 // ==========================================
 function drawStarfield(handX) {
-  // 遠景星（移動極慢）
   for(let star of starsFar) {
     noStroke();
     fill(255, 255, 255, 150);
@@ -144,7 +329,6 @@ function drawStarfield(handX) {
     star.y += star.speed; 
     if(star.y > height) star.y = 0;
   }
-  // 近景星（移動較快，產生景深）
   for(let star of starsNear) {
     noStroke();
     fill(135, 206, 250, 200);
@@ -167,10 +351,6 @@ function drawLuxuryMagicCircle() {
   strokeWeight(2);
   ellipse(0, 0, 720);
   ellipse(0, 0, 680);
-  for(let i = 0; i < 24; i++) {
-    rotate(15);
-    line(0, -360, 0, -340);
-  }
   pop();
 
   push();
@@ -184,18 +364,14 @@ function drawLuxuryMagicCircle() {
   pop();
 }
 
-// 💥 觸發鎖定時的魔法粒子擴散波
 function triggerBurst() {
   for(let i = 0; i < 40; i++) {
     let angle = random(360);
     let speed = random(3, 8);
     burstParticles.push({
-      x: width / 2,
-      y: height / 2,
-      vx: cos(angle) * speed,
-      vy: sin(angle) * speed,
-      size: random(4, 8),
-      alpha: 255,
+      x: width / 2, y: height / 2,
+      vx: cos(angle) * speed, vy: sin(angle) * speed,
+      size: random(4, 8), alpha: 255,
       color: random([color(0, 255, 255), color(138, 43, 226), color(255, 215, 0)])
     });
   }
@@ -204,28 +380,21 @@ function triggerBurst() {
 function updateBurstParticles() {
   for (let i = burstParticles.length - 1; i >= 0; i--) {
     let p = burstParticles[i];
-    p.x += p.vx;
-    p.y += p.vy;
-    p.alpha -= 5; // 逐漸淡出
-    p.size *= 0.96; // 逐漸變小
-    
+    p.x += p.vx; p.y += p.vy;
+    p.alpha -= 5; p.size *= 0.96;
     noStroke();
     p.color.setAlpha(p.alpha);
     fill(p.color);
     ellipse(p.x, p.y, p.size);
-    
-    if (p.alpha <= 0) {
-      burstParticles.splice(i, 1);
-    }
+    if (p.alpha <= 0) burstParticles.splice(i, 1);
   }
 }
 
 // ==========================================
-// ✋ 手勢核心邏輯
+// ✋ 塔羅牌手勢核心邏輯
 // ==========================================
 function handleHandGesture() {
   if (state === "select") return;
-
   if (predictions.length === 0) return;
 
   let lm = predictions[0].landmarks;
@@ -235,12 +404,12 @@ function handleHandGesture() {
     if (!fist) {
       playTarotSound(440, 0.1); 
       state = "play";
+      isAutoSpin = true; 
     }
   } 
   else if (state === "play") {
     let x = 220 - lm[8][0]; 
 
-    // 🛑 只要手是在「握拳蓄力（hold > 0）」或當前是握拳狀態下，直接跳過移動切換！
     if (!fist && hold === 0) { 
       if (frameCount % 5 === 0) { 
         if (x < 75) { 
@@ -253,13 +422,13 @@ function handleHandGesture() {
       }
     }
 
-    // ✊ 快速確認與藍色圈圈蓄力
     if (fist) {
       hold++;
       if (hold > 45) { 
         predictions = []; 
         state = "select";
-        triggerBurst(); // 💥 觸發帥氣的粒子炸裂波！
+        isAutoSpin = false;
+        triggerBurst(); 
         playTarotSound(600, 0.4); 
       }
     } else {
@@ -269,7 +438,7 @@ function handleHandGesture() {
 }
 
 // ==========================================
-// 🃏 牌組動態（升級：加入細緻微浮動動態）
+// 🃏 牌組動態
 // ==========================================
 function drawTarotFan() {
   push();
@@ -279,32 +448,21 @@ function drawTarotFan() {
   let startAngle = -75 * spreadProgress;
   let endAngle = 75 * spreadProgress;
   let angleStep = (totalCards > 1) ? (endAngle - startAngle) / (totalCards - 1) : 0;
-
-  // 使用 sin 計算平滑的魔法浮動量 (不消耗效能卻極精緻)
   let hoverY = sin(cardFloatAngle) * 8;
 
   for (let i = 0; i < totalCards; i++) {
     push();
     let currentAngle = startAngle + i * angleStep;
     rotate(currentAngle);
-    
     let radius = -440; 
     
     if (state === "spinWait") {
-      radius = -250 + sin(cardFloatAngle * 0.8) * 6; // 初始大牌也有微浮動
+      radius = -250 + sin(cardFloatAngle * 0.8) * 6;
       rectMode(CENTER);
-      let initGlow = sin(frameCount * 5) * 12 + 18;
-      fill(138, 43, 226, initGlow);
-      rect(0, radius, 140, 220, 12);
-      
       fill(25, 25, 55);
       stroke(255, 215, 0);
       strokeWeight(2.5);
       rect(0, radius, 130, 210, 10);
-      
-      stroke(255, 215, 0, 40);
-      rect(0, radius, 115, 195, 8);
-      
       noStroke();
       fill(255, 215, 0);
       textAlign(CENTER, CENTER);
@@ -314,215 +472,94 @@ function drawTarotFan() {
       continue; 
     }
 
-    // 🌟 當前被選中的卡牌：加入浮動 hoverY
     if (i === index && state === "play") {
       radius -= (50 + hoverY); 
       rectMode(CENTER);
-      let pulseGlow = sin(frameCount * 8) * 15 + 20;
-      fill(0, 191, 255, pulseGlow);
+      fill(0, 191, 255, sin(frameCount * 8) * 15 + 20);
       noStroke();
       rect(0, radius, 95, 155, 10);
     }
 
     rectMode(CENTER);
     fill(18, 18, 40);
-    
     if (i === index && state === "play") {
-      stroke(255, 215, 0); 
-      strokeWeight(2.5);
+      stroke(255, 215, 0); strokeWeight(2.5);
     } else {
-      stroke(255, 255, 255, 60);
-      strokeWeight(1);
+      stroke(255, 255, 255, 60); strokeWeight(1);
     }
     rect(0, radius, 80, 140, 8);
-    
-    stroke(255, 215, 0, 15);
-    rect(0, radius, 70, 130, 6);
-    
-    noStroke();
-    if (i === index && state === "play") fill(255, 215, 0);
-    else fill(110);
-    textAlign(CENTER, CENTER);
-    textSize(22);
-    text("?", 0, radius);
-    
     pop();
   }
   pop();
 }
 
 // ==========================================
-// 🖥️ UI 介面與精緻結果畫面
+// 🖥️ 塔羅 UI 介面
 // ==========================================
 function drawStartScreen() {
   rectMode(CENTER);
   fill(12, 12, 28, 240);
-  stroke(138, 43, 226); 
-  strokeWeight(3);
-  rect(width / 2, height / 2, 520, 460, 20);
+  stroke(138, 43, 226); strokeWeight(3);
+  rect(width / 2, height / 2, 520, 420, 20);
+  
+  noStroke(); textAlign(CENTER, CENTER);
+  fill(255, 215, 0); textSize(32);
+  text("命運塔羅占卜", width / 2, height / 2 - 140);
+  
+  fill(180); textSize(14);
+  text("【玩法】左右擺動手掌切換卡牌，握拳蓄力完成選牌。", width / 2, height / 2 - 80);
 
-  noStroke();
-  textAlign(CENTER, CENTER);
-  
-  textSize(32);
-  fill(255, 215, 0); 
-  text("神秘學塔羅占卜", width / 2, height / 2 - 160);
-  
-  textSize(16);
-  fill(200, 220, 255);
-  text("「心中想著你的問題 抽選一張大阿爾克那」", width / 2, height / 2 - 100);
-  
-  stroke(138, 43, 226, 40);
-  line(width/2 - 220, height/2 - 60, width/2 + 220, height/2 - 60);
-  noStroke();
-  
-  fill(255);
-  textSize(16);
-  textAlign(LEFT, CENTER);
-  let startX = width / 2 - 190;
-  text("【高級儀式說明】", startX, height / 2 - 30);
-  textSize(14);
-  fill(180);
-  text("1. 伸出手掌，先「握拳再張開」喚醒中央魔法牌組。", startX, height / 2 + 5);
-  text("2. 手掌「左右物理移動」控制大半圓卡牌的切換方向。", startX, height / 2 + 35);
-  text("3. 「握拳蓄力」時卡牌會完全定格，防干擾機制啟動。", startX, height / 2 + 65);
-  text("4. 蓄力條滿時會釋放魔法波，即刻為您顯現占卜結果。", startX, height / 2 + 95);
-
-  rectMode(CENTER);
-  fill(138, 43, 226, 180);
-  rect(width / 2, height / 2 + 170, 260, 45, 10);
-  
-  fill(255);
-  textAlign(CENTER, CENTER);
-  textSize(16);
-  text("點擊畫面 開啟命運之門", width / 2, height / 2 + 170);
+  drawLobbyButton(width / 2, height / 2 + 30, "開始占卜", color(138, 43, 226));
+  drawLobbyButton(width / 2, height / 2 + 130, "返回選單", color(50, 50, 60));
 }
 
 function drawSpinWaitScreen() {
-  fill(255);
-  textAlign(CENTER, CENTER);
-  textSize(22);
-  fill(0, 255, 255);
+  fill(255); textAlign(CENTER, CENTER); textSize(22); fill(0, 255, 255);
   text("🔮 請面向鏡頭「先握拳再張開」展開占卜陣列", width / 2, height / 2 - 160);
+  drawLobbyButton(80, height - 40, "⬅ 返回大廳", color(40, 40, 50));
 }
 
 function drawPlayUI() {
+  drawLobbyButton(80, height - 40, "⬅ 返回大廳", color(40, 40, 50));
   if (hold > 0) {
-    push();
-    translate(width / 2, height / 2 - 160);
-    noFill();
-    stroke(255, 255, 255, 30);
-    strokeWeight(6);
-    ellipse(0, 0, 60); 
-    
-    // 蓄力外圈漸層色感
-    stroke(0, 255, 255); 
-    let endAngle = map(hold, 0, 45, 0, 360); 
-    arc(0, 0, 60, 60, -90, endAngle - 90);
-    
-    noStroke();
-    fill(255);
-    textSize(12);
-    textAlign(CENTER, CENTER);
-    text("鎖定中", 0, 0);
-    pop();
+    push(); translate(width / 2, height / 2 - 160); noFill();
+    stroke(255, 255, 255, 30); strokeWeight(6); ellipse(0, 0, 60); 
+    stroke(0, 255, 255); arc(0, 0, 60, 60, -90, map(hold, 0, 45, 0, 360) - 90);
+    noStroke(); fill(255); textSize(12); textAlign(CENTER, CENTER); text("鎖定中", 0, 0); pop();
   } else {
-    fill(200, 220, 255);
-    textAlign(CENTER, CENTER);
-    textSize(16);
+    fill(200, 220, 255); textAlign(CENTER, CENTER); textSize(16);
     text("［命運抽選中］左右擺動切換 / 握拳蓄力鎖定", width / 2, height / 2 - 160);
   }
 }
 
-// 🎉 升級結果畫面：加入魔幻游走流光、緩慢懸浮動態
 function drawSelectScreen() {
   push();
-  
-  // 讓整張卡牌結果框隨時間優雅地上下浮動
   let selectHoverY = sin(cardFloatAngle * 0.5) * 10;
   translate(0, selectHoverY);
-  
   rectMode(CENTER);
   
-  // 緩緩改變的流光邊框顏色
   hueOffset += 0.8;
-  let rGlow = sin(hueOffset) * 40 + 215; // 在金色與神祕橘紅間流動
+  let rGlow = sin(hueOffset) * 40 + 215;
   let gGlow = sin(hueOffset + 120) * 30 + 185;
   
-  let glowSize = sin(frameCount * 6) * 12 + 12;
-  for(let i = 4; i > 0; i--) {
-    fill(rGlow, gGlow, 0, 4);
-    stroke(rGlow, gGlow, 0, 40 / i);
-    strokeWeight(i * 4 + glowSize);
-    rect(width / 2, height / 2 - 20, 295, 435, 15);
-  }
-
-  // 卡牌本體
-  fill(15, 15, 32);
-  stroke(rGlow, gGlow, 100);
-  strokeWeight(3.5);
+  fill(15, 15, 32); stroke(rGlow, gGlow, 100); strokeWeight(3.5);
   rect(width / 2, height / 2 - 20, 290, 430, 15);
 
-  stroke(rGlow, gGlow, 100, 70);
-  strokeWeight(1);
-  rect(width / 2, height / 2 - 20, 260, 400, 10);
-
-  noStroke();
-  
-  // 1. 牌名
-  fill(255, 225, 100);
-  textAlign(CENTER, CENTER);
-  textSize(28); 
+  noStroke(); fill(255, 215, 0); textAlign(CENTER, CENTER); textSize(28); 
   text(cards[index].name, width / 2, height / 2 - 165);
 
-  fill(200, 200, 255, 120);
-  textSize(11);
-  text("✦ DESTINY REVELATION ✦", width / 2, height / 2 - 130);
-
-  // 2. 文字多行精準渲染 (百分百安全鎖定在框內)
-  fill(240);
-  textSize(13); 
-  textAlign(CENTER, TOP);
-  
+  fill(240); textSize(13); textAlign(CENTER, TOP);
   let lines = cards[index].desc;
-  let startY = height / 2 - 95; 
-  let lineHeight = 24;          
-  
   for (let i = 0; i < lines.length; i++) {
-    text(lines[i], width / 2, startY + (i * lineHeight));
+    text(lines[i], width / 2, height / 2 - 95 + (i * 24));
   }
   pop();
 
-  drawResetButton();
-}
-
-function drawResetButton() {
-  push();
-  rectMode(CENTER);
-  let btnY = height - 60;
-  
-  if (mouseX > width/2 - 100 && mouseX < width/2 + 100 && mouseY > btnY - 22 && mouseY < btnY + 22) {
-    fill(138, 43, 226);
-    cursor(HAND);
-  } else {
-    fill(55, 20, 100);
-    cursor(ARROW);
-  }
-  
-  stroke(255, 215, 0, 150);
-  strokeWeight(1.5);
-  rect(width / 2, btnY, 200, 44, 8);
-  
-  noStroke();
-  fill(255);
-  textAlign(CENTER, CENTER);
-  textSize(16);
-  text("重新占卜", width / 2, btnY);
-  pop();
+  drawLobbyButton(width / 2, height - 60, "返回大廳", color(138, 43, 226));
 }
 
 // ==========================================
-// ⚙️ 輔助工具
+// ⚙️ 系統核心控制
 // ==========================================
 function isFist(lm){
   return lm[8][1] > lm[6][1] && lm[12][1] > lm[10][1];
@@ -531,29 +568,55 @@ function isFist(lm){
 function playTarotSound(freq, duration) {
   if (!soundEnabled) return; 
   try {
-    synth.start();
-    synth.freq(freq);
-    synth.amp(0.15, 0.05);
-    setTimeout(() => {
-      synth.amp(0, 0.1);
-      setTimeout(() => synth.stop(), 100);
-    }, duration * 1000);
+    synth.start(); synth.freq(freq); synth.amp(0.15, 0.05);
+    setTimeout(() => { synth.amp(0, 0.1); setTimeout(() => synth.stop(), 100); }, duration * 1000);
   } catch(e) {}
 }
 
 function mousePressed() {
-  if (state === "start") {
-    playTarotSound(523.25, 0.15); 
-    state = "spinWait";
+  cursor(ARROW);
+  
+  if (state === "lobby") {
+    // 點擊塔羅牌
+    if (mouseX > width/2 - 250 && mouseX < width/2 - 30 && mouseY > height/2 - 10 && mouseY < height/2 + 70) {
+      playTarotSound(523, 0.1);
+      state = "start";
+    }
+    // 點擊消消樂
+    if (mouseX > width/2 + 30 && mouseX < width/2 + 250 && mouseY > height/2 - 10 && mouseY < height/2 + 70) {
+      playTarotSound(587, 0.1);
+      initGame2();
+      state = "game2";
+    }
   } 
+  else if (state === "start") {
+    if (mouseX > width/2 - 110 && mouseX < width/2 + 110 && mouseY > height/2 - 10 && mouseY < height/2 + 70) {
+      state = "spinWait"; // 開始占卜
+    }
+    if (mouseX > width/2 - 110 && mouseX < width/2 + 110 && mouseY > height/2 + 90 && mouseY < height/2 + 170) {
+      state = "lobby"; // 返回選單
+    }
+  }
+  else if (state === "game2") {
+    // 遊戲結束時點擊返回大廳，或遊戲中點擊左下角返回
+    if (game2Timer <= 0) {
+      if (mouseX > width/2 - 110 && mouseX < width/2 + 110 && mouseY > height/2 + 30 && mouseY < height/2 + 110) {
+        state = "lobby";
+      }
+    } else {
+      if (mouseX > 80 - 110 && mouseX < 80 + 110 && mouseY > height - 40 - 40 && mouseY < height - 40 + 40) {
+        state = "lobby";
+      }
+    }
+  }
+  else if (state === "spinWait" || state === "play") {
+    if (mouseX > 80 - 110 && mouseX < 80 + 110 && mouseY > height - 40 - 40 && mouseY < height - 40 + 40) {
+      state = "lobby";
+    }
+  }
   else if (state === "select") {
-    let btnY = height - 60;
-    if (mouseX > width/2 - 100 && mouseX < width/2 + 100 && mouseY > btnY - 22 && mouseY < btnY + 22) {
-      playTarotSound(440, 0.1);
-      hold = 0;
-      index = 0;
-      spreadProgress = 0; 
-      state = "spinWait"; 
+    if (mouseX > width/2 - 100 && mouseX < width/2 + 100 && mouseY > height - 60 - 22 && mouseY < height - 60 + 22) {
+      state = "lobby";
     }
   }
 }
