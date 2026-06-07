@@ -141,7 +141,7 @@ function draw(){
   } else if (state === "start") {
     drawStartScreen();
   } else if (state === "game2") {
-    runGame2Logic(midX, midY, hasHand, isPinching);
+    runGame2Logic(midX, mY, hasHand, isPinching);
   } else {
     handleHandGesture(); 
     cardFloatAngle += 2.5;
@@ -172,20 +172,18 @@ function draw(){
 }
 
 // ==========================================
-// 🔀 核心優化：座標緩衝映射器（加入 true 鎖定邊界，增加安全邊緣）
+// 🔀 核心：座標緩衝映射器
 // ==========================================
 function getHandCoords(pt, currentMode) {
   let rx = 220 - pt[0]; 
   let ry = pt[1];
   
   if (currentMode === "game2") {
-    // 💡 左右留 30、上下留 25 緩衝區，手不需要移到視訊最邊緣就能摸到螢幕角落，且不輕易超出！
     return {
       x: map(rx, 30, 190, 0, width, true), 
       y: map(ry, 25, 135, 0, height, true)
     };
   } else {
-    // 迷你右上角映射
     let camX = width - 240;
     let camY = 20;
     return {
@@ -196,12 +194,12 @@ function getHandCoords(pt, currentMode) {
 }
 
 // ==========================================
-// 🦴 骨架渲染器（全面調小尺寸，看起來更乾淨細緻）
+// 🦴 骨架渲染器（全面縮小 50% 以上，更加精緻不遮擋）
 // ==========================================
 function drawHandSkeleton(lm, currentMode) {
-  stroke(0, 255, 255, 170);
-  // 全面調細線條
-  strokeWeight(currentMode === "game2" ? 1.8 : 1.0);
+  stroke(0, 255, 255, 160);
+  // ✨ 連連看線條粗細從 1.8 縮減至 0.8
+  strokeWeight(currentMode === "game2" ? 0.8 : 0.7);
   
   let fingers = [
     [0, 1, 2, 3, 4],     
@@ -220,35 +218,39 @@ function drawHandSkeleton(lm, currentMode) {
     }
   }
 
-  // 全面縮小骨架連接點
+  // ✨ 連連看關節點直徑從 5 縮減至 2.2
   noStroke();
-  fill(0, 255, 255, 230);
+  fill(0, 255, 255, 220);
   for (let i = 0; i < lm.length; i++) {
     let pt = getHandCoords(lm[i], currentMode);
-    ellipse(pt.x, pt.y, currentMode === "game2" ? 5 : 2.5);
+    ellipse(pt.x, pt.y, currentMode === "game2" ? 2.2 : 2.0);
   }
 }
 
+// ==========================================
+// 🤏 捏合提示 UI（全面縮小 50% 以上）
+// ==========================================
 function drawPinchPointsUI(tX, tY, iX, iY, midX, midY, isPinching, currentMode) {
   push();
   noStroke();
   fill(255, 255, 255, 240);
-  // 指尖提示小點
-  let dotSize = currentMode === "game2" ? 8 : 3.5;
+  // ✨ 指尖提示點從 8 縮減至 3.5
+  let dotSize = currentMode === "game2" ? 3.5 : 2.5;
   ellipse(tX, tY, dotSize); 
   ellipse(iX, iY, dotSize); 
 
   if (isPinching) {
     fill(255, 215, 0, 190); 
     stroke(255, 215, 0);
-    strokeWeight(currentMode === "game2" ? 1.5 : 0.8);
-    // 縮小捏合時的光圈
-    ellipse(midX, midY, currentMode === "game2" ? (20 + sin(frameCount * 15) * 2) : 8);
+    strokeWeight(currentMode === "game2" ? 0.8 : 0.5);
+    // ✨ 觸發捏合時的波紋圓圈從 20 縮減至 9
+    ellipse(midX, midY, currentMode === "game2" ? (9 + sin(frameCount * 15) * 1) : 6);
   } else {
-    fill(0, 255, 255, 50);  
-    stroke(0, 255, 255, 180);
-    strokeWeight(1);
-    ellipse(midX, midY, currentMode === "game2" ? 12 : 5);
+    fill(0, 255, 255, 40);  
+    stroke(0, 255, 255, 150);
+    strokeWeight(0.7);
+    // ✨ 移動時的中心十字提示圈從 12 縮減至 5
+    ellipse(midX, midY, currentMode === "game2" ? 5 : 4);
   }
   pop();
 }
